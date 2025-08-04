@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Montagem de PC - Orçamento</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         .component-card {
             transition: all 0.3s ease;
@@ -32,13 +33,15 @@
         }
         .product-image {
             width: 100%;
-            height: 120px;
-            object-fit: cover;
+            height: 150px;
+            object-fit: contain;
             border-radius: 8px;
+            background: #f8f9fa;
+            padding: 8px;
         }
         .image-placeholder {
             width: 100%;
-            height: 120px;
+            height: 150px;
             background: linear-gradient(135deg, #4b5563, #6b7280);
             border-radius: 8px;
             display: flex;
@@ -98,6 +101,40 @@
             width: auto;
             border-radius: 8px;
             box-shadow: 0 4px 15px rgba(0, 255, 255, 0.3);
+        }
+        
+        .cable {
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+        
+        .cable:hover {
+            transform: scale(1.1);
+            z-index: 20;
+        }
+        
+        .cable.dragging {
+            transform: scale(1.2);
+            z-index: 30;
+            opacity: 0.8;
+        }
+        
+        .connection-point {
+            transition: all 0.3s ease;
+        }
+        
+        .connection-point.highlight {
+            transform: scale(1.2);
+            box-shadow: 0 0 20px rgba(255, 255, 0, 0.8);
+        }
+        
+        .connection-point.connected {
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.8);
+        }
+        
+        .cable.connected {
+            opacity: 0.7;
+            pointer-events: none;
         }
     </style>
 </head>
@@ -341,11 +378,139 @@
             
             <div class="flex gap-4">
                 <button onclick="prevPage('case')" class="bg-gray-600 hover:bg-gray-700 px-6 py-3 rounded-xl transition-all">⬅️ Voltar</button>
-                <button onclick="downloadBudget()" class="flex-1 btn-gradient px-6 py-3 rounded-xl font-semibold transition-all">💾 Salvar Orçamento</button>
+                <button onclick="downloadBudgetPDF()" class="flex-1 btn-gradient px-6 py-3 rounded-xl font-semibold transition-all">📄 Salvar PDF</button>
                 <button onclick="shareWhatsApp()" class="bg-green-500 hover:bg-green-600 px-6 py-3 rounded-xl transition-all">📱 WhatsApp</button>
             </div>
         </div>
     </main>
+
+    <!-- Offline Game Modal -->
+    <div id="offlineGameModal" class="fixed inset-0 bg-black bg-opacity-90 hidden items-center justify-center z-50">
+        <div class="bg-gradient-to-br from-gray-800 to-gray-700 rounded-2xl p-8 w-full max-w-6xl mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div class="text-center mb-6">
+                <h2 class="text-4xl font-bold bg-gradient-to-r from-red-400 to-orange-400 bg-clip-text text-transparent mb-2">
+                    📡 SEM INTERNET DETECTADO
+                </h2>
+                <p class="text-xl text-gray-300 mb-4">Que tal jogar um game enquanto espera? 🎮</p>
+                <h3 class="text-3xl font-bold text-cyan-400">🔌 CONECTE OS CABOS DO PC</h3>
+                <p class="text-gray-300">Arraste os cabos para os locais corretos!</p>
+            </div>
+
+            <!-- Game Area -->
+            <div class="bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl p-6 mb-6">
+                <!-- PC Case -->
+                <div class="relative mx-auto" style="width: 600px; height: 400px;">
+                    <!-- PC Case Background -->
+                    <div class="absolute inset-0 bg-gradient-to-b from-gray-700 to-gray-900 rounded-lg border-4 border-gray-600 shadow-2xl">
+                        <!-- PC Case Details -->
+                        <div class="absolute top-4 left-4 w-16 h-8 bg-blue-500 rounded opacity-50"></div>
+                        <div class="absolute top-4 right-4 w-12 h-12 bg-green-500 rounded-full opacity-30"></div>
+                        <div class="absolute bottom-4 left-4 right-4 h-16 bg-gray-800 rounded border-2 border-gray-600"></div>
+                    </div>
+
+                    <!-- Connection Points -->
+                    <div id="powerPort" class="connection-point absolute" style="top: 50px; right: 30px; width: 40px; height: 20px;" data-cable="power">
+                        <div class="w-full h-full bg-yellow-600 rounded border-2 border-yellow-400 flex items-center justify-center text-xs font-bold">PWR</div>
+                    </div>
+
+                    <div id="usbPort" class="connection-point absolute" style="top: 100px; right: 30px; width: 30px; height: 15px;" data-cable="usb">
+                        <div class="w-full h-full bg-blue-600 rounded border-2 border-blue-400 flex items-center justify-center text-xs font-bold">USB</div>
+                    </div>
+
+                    <div id="hdmiPort" class="connection-point absolute" style="top: 150px; right: 30px; width: 35px; height: 18px;" data-cable="hdmi">
+                        <div class="w-full h-full bg-purple-600 rounded border-2 border-purple-400 flex items-center justify-center text-xs font-bold">HDMI</div>
+                    </div>
+
+                    <div id="audioPort" class="connection-point absolute" style="top: 200px; right: 30px; width: 25px; height: 25px;" data-cable="audio">
+                        <div class="w-full h-full bg-green-600 rounded-full border-2 border-green-400 flex items-center justify-center text-xs font-bold">♪</div>
+                    </div>
+
+                    <div id="ethernetPort" class="connection-point absolute" style="top: 250px; right: 30px; width: 40px; height: 20px;" data-cable="ethernet">
+                        <div class="w-full h-full bg-orange-600 rounded border-2 border-orange-400 flex items-center justify-center text-xs font-bold">NET</div>
+                    </div>
+
+                    <!-- Cables -->
+                    <div id="powerCable" class="cable draggable absolute cursor-grab" style="top: 50px; left: 50px;" data-type="power">
+                        <div class="flex items-center">
+                            <div class="w-8 h-4 bg-yellow-500 rounded border-2 border-yellow-300 mr-2"></div>
+                            <div class="text-sm font-bold text-yellow-400">Cabo de Força</div>
+                        </div>
+                    </div>
+
+                    <div id="usbCable" class="cable draggable absolute cursor-grab" style="top: 100px; left: 50px;" data-type="usb">
+                        <div class="flex items-center">
+                            <div class="w-6 h-3 bg-blue-500 rounded border-2 border-blue-300 mr-2"></div>
+                            <div class="text-sm font-bold text-blue-400">Cabo USB</div>
+                        </div>
+                    </div>
+
+                    <div id="hdmiCable" class="cable draggable absolute cursor-grab" style="top: 150px; left: 50px;" data-type="hdmi">
+                        <div class="flex items-center">
+                            <div class="w-7 h-4 bg-purple-500 rounded border-2 border-purple-300 mr-2"></div>
+                            <div class="text-sm font-bold text-purple-400">Cabo HDMI</div>
+                        </div>
+                    </div>
+
+                    <div id="audioCable" class="cable draggable absolute cursor-grab" style="top: 200px; left: 50px;" data-type="audio">
+                        <div class="flex items-center">
+                            <div class="w-5 h-5 bg-green-500 rounded-full border-2 border-green-300 mr-2"></div>
+                            <div class="text-sm font-bold text-green-400">Cabo Áudio</div>
+                        </div>
+                    </div>
+
+                    <div id="ethernetCable" class="cable draggable absolute cursor-grab" style="top: 250px; left: 50px;" data-type="ethernet">
+                        <div class="flex items-center">
+                            <div class="w-8 h-4 bg-orange-500 rounded border-2 border-orange-300 mr-2"></div>
+                            <div class="text-sm font-bold text-orange-400">Cabo Ethernet</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Game Stats -->
+                <div class="flex justify-center gap-8 mt-6">
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-green-400" id="gameScore">0</div>
+                        <div class="text-sm text-gray-400">Pontos</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-blue-400" id="gameConnected">0/5</div>
+                        <div class="text-sm text-gray-400">Conectados</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-yellow-400" id="gameTime">00:00</div>
+                        <div class="text-sm text-gray-400">Tempo</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Game Controls -->
+            <div class="flex justify-center gap-4">
+                <button onclick="resetGame()" class="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-xl transition-all font-bold">
+                    🔄 Reiniciar Jogo
+                </button>
+                <button onclick="closeOfflineGame()" class="bg-gray-600 hover:bg-gray-700 px-6 py-3 rounded-xl transition-all font-bold">
+                    ❌ Fechar
+                </button>
+                <button onclick="checkConnection()" class="bg-green-600 hover:bg-green-700 px-6 py-3 rounded-xl transition-all font-bold">
+                    📡 Testar Internet
+                </button>
+            </div>
+
+            <!-- Game Instructions -->
+            <div class="mt-6 bg-gray-800 rounded-xl p-4">
+                <h4 class="text-lg font-bold text-cyan-400 mb-2">📋 Como Jogar:</h4>
+                <ul class="text-gray-300 space-y-1">
+                    <li>• <strong>Arraste</strong> cada cabo para sua porta correspondente</li>
+                    <li>• <strong>Cabo Amarelo</strong> → Porta PWR (Energia)</li>
+                    <li>• <strong>Cabo Azul</strong> → Porta USB</li>
+                    <li>• <strong>Cabo Roxo</strong> → Porta HDMI (Vídeo)</li>
+                    <li>• <strong>Cabo Verde</strong> → Porta ♪ (Áudio)</li>
+                    <li>• <strong>Cabo Laranja</strong> → Porta NET (Internet)</li>
+                    <li>• Conecte todos os 5 cabos para ganhar! 🏆</li>
+                </ul>
+            </div>
+        </div>
+    </div>
 
     <!-- Admin Login Modal -->
     <div id="adminModal" class="fixed inset-0 bg-black bg-opacity-70 hidden items-center justify-center z-50">
@@ -1128,7 +1293,236 @@
             }
         }
 
-        // Download budget
+        // Download budget as PDF with images and logo
+        async function downloadBudgetPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            const categories = {
+                cpu: 'Processador',
+                motherboard: 'Placa-mãe',
+                ram: 'Memória RAM',
+                storage: 'Armazenamento',
+                gpu: 'Placa de Vídeo',
+                psu: 'Fonte',
+                case: 'Gabinete'
+            };
+            
+            let yPosition = 20;
+            
+            try {
+                // Add logo
+                if (siteCustomization.siteLogo) {
+                    try {
+                        const logoImg = await loadImageAsBase64(siteCustomization.siteLogo);
+                        doc.addImage(logoImg, 'PNG', 15, yPosition, 30, 20);
+                    } catch (error) {
+                        console.log('Logo não pôde ser carregada:', error);
+                    }
+                }
+                
+                // Title
+                doc.setFontSize(24);
+                doc.setTextColor(0, 100, 200);
+                doc.text('ORÇAMENTO DE PC', 50, yPosition + 15);
+                
+                // Subtitle
+                doc.setFontSize(12);
+                doc.setTextColor(100, 100, 100);
+                doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 50, yPosition + 25);
+                
+                yPosition += 45;
+                
+                // Components
+                for (const [category, component] of Object.entries(selectedComponents)) {
+                    // Check if we need a new page
+                    if (yPosition > 250) {
+                        doc.addPage();
+                        yPosition = 20;
+                    }
+                    
+                    // Category title
+                    doc.setFontSize(16);
+                    doc.setTextColor(0, 150, 100);
+                    doc.text(categories[category], 15, yPosition);
+                    
+                    yPosition += 10;
+                    
+                    // Component image
+                    if (component.image) {
+                        try {
+                            const componentImg = await loadImageAsBase64(component.image);
+                            doc.addImage(componentImg, 'JPEG', 15, yPosition, 40, 30);
+                        } catch (error) {
+                            // If image fails, add placeholder
+                            doc.setFillColor(200, 200, 200);
+                            doc.rect(15, yPosition, 40, 30, 'F');
+                            doc.setTextColor(100, 100, 100);
+                            doc.setFontSize(10);
+                            doc.text('Sem imagem', 25, yPosition + 18);
+                        }
+                    } else {
+                        // Placeholder for no image
+                        doc.setFillColor(200, 200, 200);
+                        doc.rect(15, yPosition, 40, 30, 'F');
+                        doc.setTextColor(100, 100, 100);
+                        doc.setFontSize(10);
+                        doc.text('📦', 32, yPosition + 18);
+                    }
+                    
+                    // Component details
+                    doc.setTextColor(0, 0, 0);
+                    doc.setFontSize(14);
+                    doc.text(component.name, 60, yPosition + 8);
+                    
+                    doc.setFontSize(10);
+                    doc.setTextColor(80, 80, 80);
+                    doc.text(component.specs, 60, yPosition + 16);
+                    
+                    doc.setFontSize(14);
+                    doc.setTextColor(0, 150, 0);
+                    doc.text(`R$ ${component.price.toFixed(2).replace('.', ',')}`, 60, yPosition + 26);
+                    
+                    yPosition += 45;
+                    
+                    // Add separator line
+                    doc.setDrawColor(200, 200, 200);
+                    doc.line(15, yPosition - 5, 195, yPosition - 5);
+                }
+                
+                // Total
+                yPosition += 10;
+                doc.setFontSize(18);
+                doc.setTextColor(0, 100, 0);
+                doc.text(`TOTAL: R$ ${totalPrice.toFixed(2).replace('.', ',')}`, 15, yPosition);
+                
+                // Footer
+                yPosition += 20;
+                doc.setFontSize(10);
+                doc.setTextColor(100, 100, 100);
+                doc.text('Orçamento gerado pelo sistema de montagem de PC', 15, yPosition);
+                doc.text(`${siteCustomization.siteTitle} - ${siteCustomization.siteSubtitle}`, 15, yPosition + 8);
+                
+                // Save PDF
+                const fileName = `orcamento-pc-${new Date().toISOString().split('T')[0]}.pdf`;
+                doc.save(fileName);
+                
+                alert('✅ PDF gerado com sucesso! Arquivo salvo com imagens e logo.');
+                
+            } catch (error) {
+                console.error('Erro ao gerar PDF:', error);
+                alert('❌ Erro ao gerar PDF. Tentando versão simplificada...');
+                
+                // Fallback - simple PDF without images
+                generateSimplePDF();
+            }
+        }
+        
+        // Helper function to load image as base64
+        function loadImageAsBase64(url) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    
+                    ctx.drawImage(img, 0, 0);
+                    
+                    try {
+                        const dataURL = canvas.toDataURL('image/jpeg', 0.8);
+                        resolve(dataURL);
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+                
+                img.onerror = function() {
+                    reject(new Error('Failed to load image'));
+                };
+                
+                // Handle data URLs (base64 images)
+                if (url.startsWith('data:')) {
+                    resolve(url);
+                } else {
+                    img.src = url;
+                }
+            });
+        }
+        
+        // Fallback simple PDF generation
+        function generateSimplePDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            const categories = {
+                cpu: 'Processador',
+                motherboard: 'Placa-mãe',
+                ram: 'Memória RAM',
+                storage: 'Armazenamento',
+                gpu: 'Placa de Vídeo',
+                psu: 'Fonte',
+                case: 'Gabinete'
+            };
+            
+            let yPosition = 30;
+            
+            // Title
+            doc.setFontSize(20);
+            doc.setTextColor(0, 100, 200);
+            doc.text('ORÇAMENTO DE PC', 15, yPosition);
+            
+            yPosition += 15;
+            doc.setFontSize(10);
+            doc.setTextColor(100, 100, 100);
+            doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 15, yPosition);
+            
+            yPosition += 20;
+            
+            // Components
+            Object.entries(selectedComponents).forEach(([category, component]) => {
+                if (yPosition > 250) {
+                    doc.addPage();
+                    yPosition = 20;
+                }
+                
+                doc.setFontSize(14);
+                doc.setTextColor(0, 150, 100);
+                doc.text(categories[category], 15, yPosition);
+                
+                yPosition += 8;
+                doc.setFontSize(12);
+                doc.setTextColor(0, 0, 0);
+                doc.text(component.name, 15, yPosition);
+                
+                yPosition += 6;
+                doc.setFontSize(10);
+                doc.setTextColor(80, 80, 80);
+                doc.text(component.specs, 15, yPosition);
+                
+                yPosition += 6;
+                doc.setFontSize(12);
+                doc.setTextColor(0, 150, 0);
+                doc.text(`R$ ${component.price.toFixed(2).replace('.', ',')}`, 15, yPosition);
+                
+                yPosition += 15;
+            });
+            
+            // Total
+            yPosition += 10;
+            doc.setFontSize(16);
+            doc.setTextColor(0, 100, 0);
+            doc.text(`TOTAL: R$ ${totalPrice.toFixed(2).replace('.', ',')}`, 15, yPosition);
+            
+            const fileName = `orcamento-pc-simples-${new Date().toISOString().split('T')[0]}.pdf`;
+            doc.save(fileName);
+        }
+        
+        // Keep original text download as backup
         function downloadBudget() {
             const categories = {
                 cpu: 'Processador',
@@ -1137,11 +1531,7 @@
                 storage: 'Armazenamento',
                 gpu: 'Placa de Vídeo',
                 psu: 'Fonte',
-                case: 'Gabinete',
-                monitor: 'Monitor',
-                keyboard: 'Teclado',
-                mouse: 'Mouse',
-                headset: 'Headset'
+                case: 'Gabinete'
             };
             
             let budgetText = '=== ORÇAMENTO DE PC ===\n\n';
@@ -1357,6 +1747,224 @@
             saveCustomization();
         }
 
+        // Game variables
+        let gameScore = 0;
+        let gameConnected = 0;
+        let gameStartTime = null;
+        let gameTimer = null;
+        let draggedCable = null;
+        let connectedCables = new Set();
+
+        // Offline detection and game functions
+        function checkConnection() {
+            if (navigator.onLine) {
+                document.getElementById('offlineGameModal').classList.add('hidden');
+                document.getElementById('offlineGameModal').classList.remove('flex');
+                alert('🎉 Internet conectada! Você pode continuar usando o site normalmente.');
+            } else {
+                alert('📡 Ainda sem internet. Continue jogando! 🎮');
+            }
+        }
+
+        function showOfflineGame() {
+            document.getElementById('offlineGameModal').classList.remove('hidden');
+            document.getElementById('offlineGameModal').classList.add('flex');
+            resetGame();
+        }
+
+        function closeOfflineGame() {
+            document.getElementById('offlineGameModal').classList.add('hidden');
+            document.getElementById('offlineGameModal').classList.remove('flex');
+            if (gameTimer) {
+                clearInterval(gameTimer);
+                gameTimer = null;
+            }
+        }
+
+        function resetGame() {
+            gameScore = 0;
+            gameConnected = 0;
+            gameStartTime = Date.now();
+            connectedCables.clear();
+            
+            // Reset all cables to original positions
+            const cables = ['power', 'usb', 'hdmi', 'audio', 'ethernet'];
+            cables.forEach((type, index) => {
+                const cable = document.getElementById(type + 'Cable');
+                cable.style.left = '50px';
+                cable.style.top = (50 + index * 50) + 'px';
+                cable.classList.remove('connected');
+                
+                const port = document.getElementById(type + 'Port');
+                port.classList.remove('connected');
+            });
+            
+            updateGameStats();
+            startGameTimer();
+        }
+
+        function startGameTimer() {
+            if (gameTimer) clearInterval(gameTimer);
+            
+            gameTimer = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - gameStartTime) / 1000);
+                const minutes = Math.floor(elapsed / 60);
+                const seconds = elapsed % 60;
+                document.getElementById('gameTime').textContent = 
+                    `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }, 1000);
+        }
+
+        function updateGameStats() {
+            document.getElementById('gameScore').textContent = gameScore;
+            document.getElementById('gameConnected').textContent = `${gameConnected}/5`;
+        }
+
+        // Drag and drop functionality
+        function initializeDragAndDrop() {
+            const cables = document.querySelectorAll('.cable');
+            const ports = document.querySelectorAll('.connection-point');
+            
+            cables.forEach(cable => {
+                cable.addEventListener('mousedown', startDrag);
+                cable.addEventListener('touchstart', startDrag);
+            });
+            
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('touchmove', drag);
+            document.addEventListener('mouseup', endDrag);
+            document.addEventListener('touchend', endDrag);
+        }
+
+        function startDrag(e) {
+            e.preventDefault();
+            if (e.target.closest('.cable').classList.contains('connected')) return;
+            
+            draggedCable = e.target.closest('.cable');
+            draggedCable.classList.add('dragging');
+            
+            // Highlight compatible ports
+            const cableType = draggedCable.dataset.type;
+            const compatiblePort = document.querySelector(`[data-cable="${cableType}"]`);
+            if (compatiblePort) {
+                compatiblePort.classList.add('highlight');
+            }
+        }
+
+        function drag(e) {
+            if (!draggedCable) return;
+            e.preventDefault();
+            
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+            
+            if (clientX && clientY) {
+                const gameArea = draggedCable.parentElement;
+                const rect = gameArea.getBoundingClientRect();
+                
+                draggedCable.style.left = (clientX - rect.left - 50) + 'px';
+                draggedCable.style.top = (clientY - rect.top - 20) + 'px';
+            }
+        }
+
+        function endDrag(e) {
+            if (!draggedCable) return;
+            
+            const cableType = draggedCable.dataset.type;
+            const compatiblePort = document.querySelector(`[data-cable="${cableType}"]`);
+            
+            // Remove highlights
+            document.querySelectorAll('.connection-point').forEach(port => {
+                port.classList.remove('highlight');
+            });
+            
+            // Check if cable is dropped on correct port
+            const clientX = e.clientX || (e.changedTouches && e.changedTouches[0].clientX);
+            const clientY = e.clientY || (e.changedTouches && e.changedTouches[0].clientY);
+            
+            if (clientX && clientY) {
+                const elementBelow = document.elementFromPoint(clientX, clientY);
+                const targetPort = elementBelow?.closest('.connection-point');
+                
+                if (targetPort && targetPort === compatiblePort && !connectedCables.has(cableType)) {
+                    // Successful connection!
+                    connectCable(draggedCable, targetPort, cableType);
+                } else {
+                    // Return to original position
+                    returnCableToStart(draggedCable, cableType);
+                }
+            } else {
+                returnCableToStart(draggedCable, cableType);
+            }
+            
+            draggedCable.classList.remove('dragging');
+            draggedCable = null;
+        }
+
+        function connectCable(cable, port, cableType) {
+            // Position cable at port
+            const portRect = port.getBoundingClientRect();
+            const gameRect = cable.parentElement.getBoundingClientRect();
+            
+            cable.style.left = (portRect.left - gameRect.left - 10) + 'px';
+            cable.style.top = (portRect.top - gameRect.top - 5) + 'px';
+            
+            // Mark as connected
+            cable.classList.add('connected');
+            port.classList.add('connected');
+            connectedCables.add(cableType);
+            
+            // Update score
+            gameScore += 100;
+            gameConnected++;
+            updateGameStats();
+            
+            // Check if game is complete
+            if (gameConnected === 5) {
+                setTimeout(() => {
+                    const timeBonus = Math.max(0, 300 - Math.floor((Date.now() - gameStartTime) / 1000)) * 10;
+                    gameScore += timeBonus;
+                    updateGameStats();
+                    
+                    alert(`🎉 PARABÉNS! Você conectou todos os cabos!\n\n🏆 Pontuação Final: ${gameScore}\n⏱️ Bônus de Tempo: ${timeBonus}\n\nVocê é um expert em montagem de PC! 🖥️✨`);
+                    
+                    if (gameTimer) {
+                        clearInterval(gameTimer);
+                        gameTimer = null;
+                    }
+                }, 500);
+            }
+        }
+
+        function returnCableToStart(cable, cableType) {
+            const cables = ['power', 'usb', 'hdmi', 'audio', 'ethernet'];
+            const index = cables.indexOf(cableType);
+            
+            cable.style.left = '50px';
+            cable.style.top = (50 + index * 50) + 'px';
+        }
+
+        // Network status detection
+        window.addEventListener('online', () => {
+            console.log('🌐 Internet conectada!');
+        });
+
+        window.addEventListener('offline', () => {
+            console.log('📡 Internet desconectada - Mostrando jogo offline');
+            setTimeout(() => {
+                showOfflineGame();
+            }, 1000);
+        });
+
+        // Check initial connection status
+        function checkInitialConnection() {
+            if (!navigator.onLine) {
+                setTimeout(() => {
+                    showOfflineGame();
+                }, 2000);
+            }
+        }
+
         // Initialize app
         initializeApp();
         
@@ -1364,6 +1972,12 @@
         setTimeout(() => {
             applyCustomizations();
         }, 100);
+        
+        // Initialize game
+        setTimeout(() => {
+            initializeDragAndDrop();
+            checkInitialConnection();
+        }, 500);
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'969a7b28855a90a9',t:'MTc1NDI3MzAzNS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'969a889403b090a9',t:'MTc1NDI3MzU4NS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

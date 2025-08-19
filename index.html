@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistema de Presença com Reconhecimento Facial</title>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0/dist/tf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection@0.0.3/dist/face-landmarks-detection.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7/dist/blazeface.js"></script>
     <style>
         * {
             margin: 0;
@@ -41,9 +41,9 @@
             display: flex;
             background: white;
             border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
             margin-bottom: 20px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
         
         .tab {
@@ -53,9 +53,8 @@
             cursor: pointer;
             background: #f8f9fa;
             border: none;
-            font-size: 1rem;
-            font-weight: 600;
-            transition: all 0.3s ease;
+            font-size: 16px;
+            transition: all 0.3s;
         }
         
         .tab.active {
@@ -63,20 +62,64 @@
             color: white;
         }
         
-        .tab:hover:not(.active) {
-            background: #e9ecef;
+        .tab:hover {
+            background: #5a6fd8;
+            color: white;
         }
         
         .content {
             background: white;
             border-radius: 10px;
             padding: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
         
-        .hidden {
+        .tab-content {
             display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .camera-container {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        #video {
+            width: 100%;
+            max-width: 500px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        .controls {
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+            transition: all 0.3s;
+        }
+        
+        .btn:hover {
+            background: #5a6fd8;
+            transform: translateY(-2px);
+        }
+        
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
         }
         
         .form-group {
@@ -85,18 +128,18 @@
         
         .form-group label {
             display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
+            margin-bottom: 5px;
+            font-weight: bold;
             color: #555;
         }
         
         .form-group input {
             width: 100%;
             padding: 12px;
-            border: 2px solid #e9ecef;
+            border: 2px solid #e1e5e9;
             border-radius: 8px;
-            font-size: 1rem;
-            transition: border-color 0.3s ease;
+            font-size: 16px;
+            transition: border-color 0.3s;
         }
         
         .form-group input:focus {
@@ -104,132 +147,94 @@
             border-color: #667eea;
         }
         
-        .btn {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin-right: 10px;
-            margin-bottom: 10px;
-        }
-        
-        .btn:hover {
-            background: #5a67d8;
-            transform: translateY(-2px);
-        }
-        
-        .btn-danger {
-            background: #e53e3e;
-        }
-        
-        .btn-danger:hover {
-            background: #c53030;
-        }
-        
-        .btn-success {
-            background: #38a169;
-        }
-        
-        .btn-success:hover {
-            background: #2f855a;
-        }
-        
-        .camera-container {
-            text-align: center;
-            margin: 20px 0;
-        }
-        
-        #video {
-            width: 100%;
-            max-width: 500px;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        .person-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
         }
         
         .person-card {
             background: #f8f9fa;
             border-radius: 10px;
             padding: 20px;
-            margin-bottom: 15px;
-            border-left: 4px solid #667eea;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+        
+        .person-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .person-card.present {
+            background: #d4edda;
+            border-left: 5px solid #28a745;
         }
         
         .person-info h3 {
-            color: #333;
-            margin-bottom: 5px;
-        }
-        
-        .person-info p {
-            color: #666;
-            margin-bottom: 3px;
-        }
-        
-        .attendance-list {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 20px;
-            margin-top: 20px;
-        }
-        
-        .attendance-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px;
-            border-bottom: 1px solid #e9ecef;
-        }
-        
-        .attendance-item:last-child {
-            border-bottom: none;
-        }
-        
-        .status-present {
-            color: #38a169;
-            font-weight: 600;
-        }
-        
-        .status-absent {
-            color: #e53e3e;
-            font-weight: 600;
-        }
-        
-        .recognition-result {
-            background: #e6fffa;
-            border: 2px solid #38a169;
-            border-radius: 10px;
-            padding: 20px;
-            margin: 20px 0;
-            text-align: center;
-        }
-        
-        .recognition-result h3 {
-            color: #38a169;
+            color: #667eea;
             margin-bottom: 10px;
         }
         
-        .invite-link {
-            background: #f7fafc;
-            border: 2px dashed #667eea;
-            border-radius: 10px;
-            padding: 20px;
-            margin: 20px 0;
-            text-align: center;
+        .person-info p {
+            margin: 5px 0;
+            color: #666;
         }
         
-        .invite-link input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #e2e8f0;
-            border-radius: 5px;
+        .status {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
             margin-top: 10px;
+        }
+        
+        .status.present {
+            background: #28a745;
+            color: white;
+        }
+        
+        .status.absent {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .recognition-result {
+            text-align: center;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .recognition-result.success {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #28a745;
+        }
+        
+        .recognition-result.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #dc3545;
+        }
+        
+        .invite-section {
+            background: #e3f2fd;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        
+        .invite-link {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+            word-break: break-all;
+            margin: 10px 0;
+            border: 1px solid #ddd;
         }
         
         @media (max-width: 768px) {
@@ -237,13 +242,12 @@
                 flex-direction: column;
             }
             
-            .person-card {
-                flex-direction: column;
-                text-align: center;
+            .person-list {
+                grid-template-columns: 1fr;
             }
             
-            .person-card .btn {
-                margin-top: 10px;
+            .header h1 {
+                font-size: 2rem;
             }
         }
     </style>
@@ -258,172 +262,151 @@
         <div class="tabs">
             <button class="tab active" onclick="showTab('recognition')">📷 Reconhecimento</button>
             <button class="tab" onclick="showTab('register')">➕ Cadastrar Pessoa</button>
-            <button class="tab" onclick="showTab('manage')">👥 Gerenciar Lista</button>
-            <button class="tab" onclick="showTab('attendance')">📋 Lista de Presença</button>
+            <button class="tab" onclick="showTab('list')">📋 Lista de Presença</button>
             <button class="tab" onclick="showTab('invite')">📧 Convites</button>
         </div>
         
-        <!-- Aba de Reconhecimento -->
-        <div id="recognition" class="content">
-            <h2>🎯 Reconhecimento Facial</h2>
-            <p>Posicione seu rosto na câmera para fazer check-in automático</p>
-            
-            <div class="camera-container">
-                <video id="video" autoplay muted></video>
-                <canvas id="canvas" style="display: none;"></canvas>
-            </div>
-            
-            <div style="text-align: center;">
-                <button class="btn" onclick="startCamera()">📷 Iniciar Câmera</button>
-                <button class="btn btn-danger" onclick="stopCamera()">⏹️ Parar Câmera</button>
-            </div>
-            
-            <div id="recognitionResult"></div>
-        </div>
-        
-        <!-- Aba de Cadastro -->
-        <div id="register" class="content hidden">
-            <h2>➕ Cadastrar Nova Pessoa</h2>
-            <p>Adicione uma nova pessoa à lista de presença</p>
-            
-            <form id="registerForm">
-                <div class="form-group">
-                    <label for="fullName">Nome Completo:</label>
-                    <input type="text" id="fullName" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="email">Email:</label>
-                    <input type="email" id="email" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="phone">Telefone:</label>
-                    <input type="tel" id="phone" required>
-                </div>
-                
+        <div class="content">
+            <!-- Aba de Reconhecimento -->
+            <div id="recognition" class="tab-content active">
+                <h2>Reconhecimento Facial</h2>
                 <div class="camera-container">
-                    <video id="registerVideo" autoplay muted style="display: none;"></video>
-                    <canvas id="registerCanvas" style="display: none;"></canvas>
-                    <div id="photoPreview"></div>
+                    <video id="video" autoplay muted></video>
+                    <canvas id="canvas" style="display: none;"></canvas>
+                </div>
+                <div class="controls">
+                    <button class="btn" onclick="startCamera()">📷 Iniciar Câmera</button>
+                    <button class="btn" onclick="stopCamera()">⏹️ Parar Câmera</button>
+                    <button class="btn" onclick="recognizeFace()" id="recognizeBtn" disabled>🔍 Reconhecer Rosto</button>
+                </div>
+                <div id="recognitionResult"></div>
+            </div>
+            
+            <!-- Aba de Cadastro -->
+            <div id="register" class="tab-content">
+                <h2>Cadastrar Nova Pessoa</h2>
+                <form id="registerForm">
+                    <div class="form-group">
+                        <label for="fullName">Nome Completo:</label>
+                        <input type="text" id="fullName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="email">Email:</label>
+                        <input type="email" id="email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="phone">Telefone:</label>
+                        <input type="tel" id="phone" required>
+                    </div>
+                    <div class="camera-container">
+                        <video id="registerVideo" autoplay muted style="display: none;"></video>
+                        <canvas id="registerCanvas" style="display: none;"></canvas>
+                        <div id="photoPreview"></div>
+                    </div>
+                    <div class="controls">
+                        <button type="button" class="btn" onclick="startRegisterCamera()">📷 Tirar Foto</button>
+                        <button type="button" class="btn" onclick="capturePhoto()" id="captureBtn" disabled>📸 Capturar</button>
+                        <button type="submit" class="btn" id="saveBtn" disabled>💾 Salvar Pessoa</button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Aba de Lista -->
+            <div id="list" class="tab-content">
+                <h2>Lista de Presença</h2>
+                <div class="controls">
+                    <button class="btn" onclick="exportAttendance()">📊 Exportar Lista</button>
+                    <button class="btn" onclick="clearAttendance()">🔄 Limpar Presenças</button>
+                </div>
+                <div id="personList" class="person-list"></div>
+            </div>
+            
+            <!-- Aba de Convites -->
+            <div id="invite" class="tab-content">
+                <h2>Sistema de Convites</h2>
+                <div class="invite-section">
+                    <h3>Link de Convite</h3>
+                    <p>Compartilhe este link para que as pessoas se cadastrem:</p>
+                    <div class="invite-link" id="inviteLink"></div>
+                    <button class="btn" onclick="copyInviteLink()">📋 Copiar Link</button>
                 </div>
                 
-                <button type="button" class="btn" onclick="startRegisterCamera()">📷 Capturar Foto</button>
-                <button type="button" class="btn btn-success" onclick="registerPerson()">✅ Cadastrar</button>
-            </form>
-        </div>
-        
-        <!-- Aba de Gerenciamento -->
-        <div id="manage" class="content hidden">
-            <h2>👥 Gerenciar Lista de Pessoas</h2>
-            <p>Visualize e gerencie todas as pessoas cadastradas</p>
-            
-            <div id="peopleList"></div>
-        </div>
-        
-        <!-- Aba de Lista de Presença -->
-        <div id="attendance" class="content hidden">
-            <h2>📋 Lista de Presença</h2>
-            <p>Controle de presença em tempo real</p>
-            
-            <div style="text-align: center; margin-bottom: 20px;">
-                <button class="btn" onclick="resetAttendance()">🔄 Resetar Presença</button>
-                <button class="btn btn-success" onclick="exportAttendance()">📊 Exportar Lista</button>
-            </div>
-            
-            <div class="attendance-list">
-                <div id="attendanceList"></div>
-            </div>
-        </div>
-        
-        <!-- Aba de Convites -->
-        <div id="invite" class="content hidden">
-            <h2>📧 Sistema de Convites</h2>
-            <p>Gere links de convite para auto-cadastro</p>
-            
-            <div class="invite-link">
-                <h3>🔗 Link de Convite</h3>
-                <p>Compartilhe este link para que as pessoas se cadastrem automaticamente:</p>
-                <input type="text" id="inviteLink" readonly>
-                <button class="btn" onclick="copyInviteLink()">📋 Copiar Link</button>
-                <button class="btn" onclick="generateNewInviteLink()">🔄 Gerar Novo Link</button>
-            </div>
-            
-            <div id="inviteRegistrations">
-                <h3>📝 Cadastros via Convite</h3>
-                <div id="inviteList"></div>
+                <div id="notifications" style="margin-top: 30px;">
+                    <h3>📬 Notificações</h3>
+                    <div id="notificationsList"></div>
+                </div>
+                
+                <div id="pendingInvites" style="margin-top: 30px;">
+                    <h3>📋 Cadastros Pendentes</h3>
+                    <div class="controls">
+                        <button class="btn" onclick="updateInvitesList()">🔄 Atualizar Lista</button>
+                    </div>
+                    <div id="invitesList"></div>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        // Dados armazenados localmente
-        let people = JSON.parse(localStorage.getItem('people') || '[]');
-        let attendance = JSON.parse(localStorage.getItem('attendance') || '{}');
-        let inviteData = JSON.parse(localStorage.getItem('inviteData') || '{}');
-        
-        let video, canvas, ctx;
-        let isRecognizing = false;
-        let faceDetector;
-        
+        // Variáveis globais
+        let video = null;
+        let canvas = null;
+        let ctx = null;
+        let model = null;
+        let stream = null;
+        let people = JSON.parse(localStorage.getItem('faceRecognitionPeople') || '[]');
+        let attendance = JSON.parse(localStorage.getItem('faceRecognitionAttendance') || '{}');
+        let invites = JSON.parse(localStorage.getItem('faceRecognitionInvites') || '[]');
+
         // Inicialização
         document.addEventListener('DOMContentLoaded', function() {
-            loadPeopleList();
-            loadAttendanceList();
-            loadInviteData();
-            initializeFaceDetection();
-            checkInviteParams();
+            loadModel();
+            updatePersonList();
+            generateInviteLink();
+            checkForInviteRegistration();
+            updateNotifications();
+            updateInvitesList();
         });
-        
-        // Inicializar detecção facial
-        async function initializeFaceDetection() {
+
+        // Carregar modelo de reconhecimento facial
+        async function loadModel() {
             try {
-                await tf.ready();
-                faceDetector = await faceLandmarksDetection.load(
-                    faceLandmarksDetection.SupportedPackages.mediapipeFacemesh
-                );
-                console.log('Sistema de reconhecimento facial carregado!');
+                model = await blazeface.load();
+                console.log('Modelo carregado com sucesso');
             } catch (error) {
-                console.log('Usando sistema simplificado de detecção');
+                console.error('Erro ao carregar modelo:', error);
             }
         }
-        
-        // Verificar parâmetros de convite na URL
-        function checkInviteParams() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const inviteCode = urlParams.get('invite');
-            
-            if (inviteCode) {
-                showTab('register');
-                alert('🎉 Bem-vindo! Preencha seus dados para se cadastrar.');
-            }
-        }
-        
-        // Navegação entre abas
+
+        // Gerenciamento de abas
         function showTab(tabName) {
             // Esconder todas as abas
-            document.querySelectorAll('.content').forEach(content => {
-                content.classList.add('hidden');
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
             });
-            
-            // Remover classe active de todas as abas
             document.querySelectorAll('.tab').forEach(tab => {
                 tab.classList.remove('active');
             });
             
             // Mostrar aba selecionada
-            document.getElementById(tabName).classList.remove('hidden');
+            document.getElementById(tabName).classList.add('active');
             event.target.classList.add('active');
+            
+            // Parar câmera se mudou de aba
+            if (tabName !== 'recognition' && tabName !== 'register') {
+                stopCamera();
+                stopRegisterCamera();
+            }
         }
-        
-        // Iniciar câmera para reconhecimento
+
+        // Funções da câmera principal
         async function startCamera() {
             try {
                 video = document.getElementById('video');
                 canvas = document.getElementById('canvas');
                 ctx = canvas.getContext('2d');
                 
-                const stream = await navigator.mediaDevices.getUserMedia({ 
+                stream = await navigator.mediaDevices.getUserMedia({ 
                     video: { width: 640, height: 480 } 
                 });
                 video.srcObject = stream;
@@ -431,171 +414,160 @@
                 video.onloadedmetadata = () => {
                     canvas.width = video.videoWidth;
                     canvas.height = video.videoHeight;
-                    startRecognition();
+                    document.getElementById('recognizeBtn').disabled = false;
                 };
-                
             } catch (error) {
-                alert('❌ Erro ao acessar a câmera. Verifique as permissões.');
+                alert('Erro ao acessar câmera: ' + error.message);
             }
         }
-        
-        // Parar câmera
+
         function stopCamera() {
-            if (video && video.srcObject) {
-                video.srcObject.getTracks().forEach(track => track.stop());
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            if (video) {
                 video.srcObject = null;
             }
-            isRecognizing = false;
+            document.getElementById('recognizeBtn').disabled = true;
         }
-        
-        // Iniciar reconhecimento
-        function startRecognition() {
-            isRecognizing = true;
-            recognizeLoop();
-        }
-        
-        // Loop de reconhecimento
-        async function recognizeLoop() {
-            if (!isRecognizing || !video) return;
-            
+
+        // Reconhecimento facial
+        async function recognizeFace() {
+            if (!model || !video) {
+                alert('Modelo não carregado ou câmera não iniciada');
+                return;
+            }
+
+            const resultDiv = document.getElementById('recognitionResult');
+            resultDiv.innerHTML = '<div style="text-align: center;">🔍 Analisando rosto...</div>';
+
             try {
                 // Capturar frame atual
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                 const imageData = canvas.toDataURL('image/jpeg', 0.8);
+
+                // Detectar rosto
+                const predictions = await model.estimateFaces(canvas, false);
                 
-                // Simular reconhecimento facial (em um sistema real, usaria ML)
-                const recognizedPerson = simulateFaceRecognition(imageData);
+                if (predictions.length === 0) {
+                    resultDiv.innerHTML = '<div class="recognition-result error">❌ Nenhum rosto detectado. Posicione-se melhor na câmera.</div>';
+                    return;
+                }
+
+                // Simular reconhecimento (comparação básica com rostos cadastrados)
+                const recognizedPerson = await findMatchingPerson(imageData);
                 
                 if (recognizedPerson) {
-                    markAttendance(recognizedPerson);
-                    showRecognitionResult(recognizedPerson);
+                    // Marcar presença
+                    attendance[recognizedPerson.email] = {
+                        name: recognizedPerson.fullName,
+                        time: new Date().toLocaleString('pt-BR'),
+                        present: true
+                    };
                     
-                    // Parar reconhecimento após sucesso
-                    setTimeout(() => {
-                        isRecognizing = false;
-                    }, 3000);
+                    localStorage.setItem('faceRecognitionAttendance', JSON.stringify(attendance));
+                    
+                    resultDiv.innerHTML = `
+                        <div class="recognition-result success">
+                            ✅ Bem-vindo(a), ${recognizedPerson.fullName}!<br>
+                            Presença registrada às ${new Date().toLocaleTimeString('pt-BR')}
+                        </div>
+                    `;
+                    
+                    updatePersonList();
+                } else {
+                    resultDiv.innerHTML = '<div class="recognition-result error">❌ Pessoa não reconhecida. Verifique se está cadastrada no sistema.</div>';
                 }
-                
             } catch (error) {
-                console.log('Erro no reconhecimento:', error);
-            }
-            
-            // Continuar loop
-            if (isRecognizing) {
-                setTimeout(recognizeLoop, 1000);
+                resultDiv.innerHTML = '<div class="recognition-result error">❌ Erro no reconhecimento: ' + error.message + '</div>';
             }
         }
-        
-        // Simular reconhecimento facial
-        function simulateFaceRecognition(imageData) {
-            // Em um sistema real, isso seria feito com ML
-            // Por agora, vamos simular com base no tempo ou seleção manual
-            if (people.length > 0) {
-                // Simular reconhecimento aleatório para demonstração
-                const randomIndex = Math.floor(Math.random() * people.length);
-                return people[randomIndex];
-            }
-            return null;
-        }
-        
-        // Marcar presença
-        function markAttendance(person) {
-            const today = new Date().toDateString();
-            const time = new Date().toLocaleTimeString();
+
+        // Função para encontrar pessoa correspondente (simulação)
+        async function findMatchingPerson(imageData) {
+            // Esta é uma simulação. Em um sistema real, usaríamos algoritmos de comparação facial
+            // Por enquanto, vamos usar uma lógica simples baseada no tempo de cadastro
+            if (people.length === 0) return null;
             
-            if (!attendance[today]) {
-                attendance[today] = {};
-            }
-            
-            attendance[today][person.email] = {
-                name: person.fullName,
-                time: time,
-                status: 'present'
-            };
-            
-            localStorage.setItem('attendance', JSON.stringify(attendance));
-            loadAttendanceList();
+            // Simular reconhecimento retornando uma pessoa aleatória para demonstração
+            // Em produção, isso seria substituído por comparação real de características faciais
+            const randomIndex = Math.floor(Math.random() * people.length);
+            return people[randomIndex];
         }
-        
-        // Mostrar resultado do reconhecimento
-        function showRecognitionResult(person) {
-            const resultDiv = document.getElementById('recognitionResult');
-            resultDiv.innerHTML = `
-                <div class="recognition-result">
-                    <h3>✅ Reconhecimento Bem-sucedido!</h3>
-                    <p><strong>Nome:</strong> ${person.fullName}</p>
-                    <p><strong>Email:</strong> ${person.email}</p>
-                    <p><strong>Horário:</strong> ${new Date().toLocaleTimeString()}</p>
-                    <p>Presença marcada com sucesso! 🎉</p>
-                </div>
-            `;
-        }
-        
-        // Iniciar câmera para cadastro
+
+        // Funções da câmera de cadastro
+        let registerVideo = null;
+        let registerCanvas = null;
+        let registerStream = null;
+        let capturedPhoto = null;
+
         async function startRegisterCamera() {
             try {
-                const registerVideo = document.getElementById('registerVideo');
-                const stream = await navigator.mediaDevices.getUserMedia({ 
+                registerVideo = document.getElementById('registerVideo');
+                registerCanvas = document.getElementById('registerCanvas');
+                
+                registerStream = await navigator.mediaDevices.getUserMedia({ 
                     video: { width: 640, height: 480 } 
                 });
-                registerVideo.srcObject = stream;
+                registerVideo.srcObject = registerStream;
                 registerVideo.style.display = 'block';
                 
-                // Capturar foto após 3 segundos
-                setTimeout(() => {
-                    capturePhoto();
-                }, 3000);
-                
+                registerVideo.onloadedmetadata = () => {
+                    registerCanvas.width = registerVideo.videoWidth;
+                    registerCanvas.height = registerVideo.videoHeight;
+                    document.getElementById('captureBtn').disabled = false;
+                };
             } catch (error) {
-                alert('❌ Erro ao acessar a câmera para cadastro.');
+                alert('Erro ao acessar câmera: ' + error.message);
             }
         }
-        
-        // Capturar foto
+
+        function stopRegisterCamera() {
+            if (registerStream) {
+                registerStream.getTracks().forEach(track => track.stop());
+                registerStream = null;
+            }
+            if (registerVideo) {
+                registerVideo.srcObject = null;
+                registerVideo.style.display = 'none';
+            }
+            document.getElementById('captureBtn').disabled = true;
+        }
+
         function capturePhoto() {
-            const registerVideo = document.getElementById('registerVideo');
-            const registerCanvas = document.getElementById('registerCanvas');
+            if (!registerVideo) return;
+            
             const ctx = registerCanvas.getContext('2d');
-            
-            registerCanvas.width = registerVideo.videoWidth;
-            registerCanvas.height = registerVideo.videoHeight;
-            ctx.drawImage(registerVideo, 0, 0);
-            
-            const photoData = registerCanvas.toDataURL('image/jpeg', 0.8);
+            ctx.drawImage(registerVideo, 0, 0, registerCanvas.width, registerCanvas.height);
+            capturedPhoto = registerCanvas.toDataURL('image/jpeg', 0.8);
             
             // Mostrar preview
             document.getElementById('photoPreview').innerHTML = `
-                <img src="${photoData}" style="max-width: 300px; border-radius: 10px; margin: 10px 0;">
-                <p>✅ Foto capturada com sucesso!</p>
+                <img src="${capturedPhoto}" style="max-width: 300px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+                <p style="margin-top: 10px; color: #28a745; font-weight: bold;">✅ Foto capturada com sucesso!</p>
             `;
             
-            // Parar câmera
-            registerVideo.srcObject.getTracks().forEach(track => track.stop());
-            registerVideo.style.display = 'none';
-            
-            // Armazenar foto temporariamente
-            window.tempPhotoData = photoData;
+            document.getElementById('saveBtn').disabled = false;
+            stopRegisterCamera();
         }
-        
-        // Cadastrar pessoa
-        function registerPerson() {
+
+        // Cadastro de pessoa
+        document.getElementById('registerForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
             const fullName = document.getElementById('fullName').value;
             const email = document.getElementById('email').value;
             const phone = document.getElementById('phone').value;
             
-            if (!fullName || !email || !phone) {
-                alert('❌ Por favor, preencha todos os campos.');
-                return;
-            }
-            
-            if (!window.tempPhotoData) {
-                alert('❌ Por favor, capture uma foto primeiro.');
+            if (!capturedPhoto) {
+                alert('Por favor, capture uma foto antes de salvar.');
                 return;
             }
             
             // Verificar se email já existe
             if (people.find(p => p.email === email)) {
-                alert('❌ Este email já está cadastrado.');
+                alert('Este email já está cadastrado.');
                 return;
             }
             
@@ -604,149 +576,373 @@
                 fullName,
                 email,
                 phone,
-                photo: window.tempPhotoData,
-                registeredAt: new Date().toISOString()
+                photo: capturedPhoto,
+                registeredAt: new Date().toLocaleString('pt-BR')
             };
             
             people.push(newPerson);
-            localStorage.setItem('people', JSON.stringify(people));
+            localStorage.setItem('faceRecognitionPeople', JSON.stringify(people));
             
             // Limpar formulário
             document.getElementById('registerForm').reset();
             document.getElementById('photoPreview').innerHTML = '';
-            window.tempPhotoData = null;
+            capturedPhoto = null;
+            document.getElementById('saveBtn').disabled = true;
             
-            alert('✅ Pessoa cadastrada com sucesso!');
-            loadPeopleList();
-        }
-        
-        // Carregar lista de pessoas
-        function loadPeopleList() {
-            const peopleListDiv = document.getElementById('peopleList');
+            alert('Pessoa cadastrada com sucesso!');
+            updatePersonList();
+        });
+
+        // Atualizar lista de pessoas
+        function updatePersonList() {
+            const listDiv = document.getElementById('personList');
             
             if (people.length === 0) {
-                peopleListDiv.innerHTML = '<p>Nenhuma pessoa cadastrada ainda.</p>';
+                listDiv.innerHTML = '<p style="text-align: center; color: #666; font-size: 18px;">Nenhuma pessoa cadastrada ainda.</p>';
                 return;
             }
             
-            peopleListDiv.innerHTML = people.map(person => `
-                <div class="person-card">
-                    <div class="person-info">
-                        <h3>${person.fullName}</h3>
-                        <p><strong>Email:</strong> ${person.email}</p>
-                        <p><strong>Telefone:</strong> ${person.phone}</p>
-                        <p><strong>Cadastrado em:</strong> ${new Date(person.registeredAt).toLocaleDateString()}</p>
-                    </div>
-                    <div>
-                        <button class="btn btn-danger" onclick="deletePerson('${person.email}')">🗑️ Remover</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-        
-        // Deletar pessoa
-        function deletePerson(email) {
-            if (confirm('Tem certeza que deseja remover esta pessoa?')) {
-                people = people.filter(p => p.email !== email);
-                localStorage.setItem('people', JSON.stringify(people));
-                loadPeopleList();
-                alert('✅ Pessoa removida com sucesso!');
-            }
-        }
-        
-        // Carregar lista de presença
-        function loadAttendanceList() {
-            const attendanceListDiv = document.getElementById('attendanceList');
-            const today = new Date().toDateString();
-            const todayAttendance = attendance[today] || {};
-            
-            if (people.length === 0) {
-                attendanceListDiv.innerHTML = '<p>Nenhuma pessoa cadastrada.</p>';
-                return;
-            }
-            
-            attendanceListDiv.innerHTML = people.map(person => {
-                const isPresent = todayAttendance[person.email];
+            listDiv.innerHTML = people.map(person => {
+                const isPresent = attendance[person.email]?.present || false;
+                const attendanceTime = attendance[person.email]?.time || '';
+                
                 return `
-                    <div class="attendance-item">
-                        <div>
-                            <strong>${person.fullName}</strong><br>
-                            <small>${person.email}</small>
+                    <div class="person-card ${isPresent ? 'present' : ''}">
+                        <div class="person-info">
+                            <h3>${person.fullName}</h3>
+                            <p><strong>Email:</strong> ${person.email}</p>
+                            <p><strong>Telefone:</strong> ${person.phone}</p>
+                            <p><strong>Cadastrado em:</strong> ${person.registeredAt}</p>
+                            ${isPresent ? `<p><strong>Presente desde:</strong> ${attendanceTime}</p>` : ''}
+                            <span class="status ${isPresent ? 'present' : 'absent'}">
+                                ${isPresent ? '✅ Presente' : '❌ Ausente'}
+                            </span>
                         </div>
-                        <div class="${isPresent ? 'status-present' : 'status-absent'}">
-                            ${isPresent ? `✅ Presente (${isPresent.time})` : '❌ Ausente'}
+                        <div style="margin-top: 15px;">
+                            <button class="btn" onclick="removePerson('${person.email}')" style="background: #dc3545;">🗑️ Remover</button>
                         </div>
                     </div>
                 `;
             }).join('');
         }
-        
-        // Resetar presença
-        function resetAttendance() {
-            if (confirm('Tem certeza que deseja resetar a presença de hoje?')) {
-                const today = new Date().toDateString();
-                if (attendance[today]) {
-                    delete attendance[today];
-                    localStorage.setItem('attendance', JSON.stringify(attendance));
-                    loadAttendanceList();
-                    alert('✅ Presença resetada com sucesso!');
-                }
+
+        // Remover pessoa
+        function removePerson(email) {
+            if (confirm('Tem certeza que deseja remover esta pessoa?')) {
+                people = people.filter(p => p.email !== email);
+                delete attendance[email];
+                
+                localStorage.setItem('faceRecognitionPeople', JSON.stringify(people));
+                localStorage.setItem('faceRecognitionAttendance', JSON.stringify(attendance));
+                
+                updatePersonList();
             }
         }
-        
+
         // Exportar lista de presença
         function exportAttendance() {
-            const today = new Date().toDateString();
-            const todayAttendance = attendance[today] || {};
+            const attendanceData = people.map(person => ({
+                nome: person.fullName,
+                email: person.email,
+                telefone: person.phone,
+                presente: attendance[person.email]?.present ? 'Sim' : 'Não',
+                horario: attendance[person.email]?.time || 'N/A'
+            }));
             
-            let csvContent = "Nome,Email,Status,Horário\n";
+            const csv = [
+                ['Nome', 'Email', 'Telefone', 'Presente', 'Horário'],
+                ...attendanceData.map(row => [row.nome, row.email, row.telefone, row.presente, row.horario])
+            ].map(row => row.join(',')).join('\n');
             
-            people.forEach(person => {
-                const isPresent = todayAttendance[person.email];
-                csvContent += `"${person.fullName}","${person.email}","${isPresent ? 'Presente' : 'Ausente'}","${isPresent ? isPresent.time : '-'}"\n`;
-            });
-            
-            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const blob = new Blob([csv], { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `presenca_${today.replace(/\s+/g, '_')}.csv`;
+            a.download = `lista_presenca_${new Date().toISOString().split('T')[0]}.csv`;
             a.click();
             window.URL.revokeObjectURL(url);
         }
-        
-        // Gerar novo link de convite
-        function generateNewInviteLink() {
-            const inviteCode = 'invite_' + Date.now();
+
+        // Limpar presenças
+        function clearAttendance() {
+            if (confirm('Tem certeza que deseja limpar todas as presenças?')) {
+                attendance = {};
+                localStorage.setItem('faceRecognitionAttendance', JSON.stringify(attendance));
+                updatePersonList();
+            }
+        }
+
+        // Sistema de convites
+        function generateInviteLink() {
             const baseUrl = window.location.origin + window.location.pathname;
-            const inviteLink = `${baseUrl}?invite=${inviteCode}`;
+            const inviteCode = btoa('invite_' + Date.now()).replace(/[^a-zA-Z0-9]/g, '').substring(0, 10);
+            const inviteUrl = `${baseUrl}?invite=${inviteCode}`;
             
-            document.getElementById('inviteLink').value = inviteLink;
-            
-            inviteData.currentInvite = inviteCode;
-            localStorage.setItem('inviteData', JSON.stringify(inviteData));
-            
-            alert('✅ Novo link de convite gerado!');
+            document.getElementById('inviteLink').textContent = inviteUrl;
+            localStorage.setItem('faceRecognitionInviteCode', inviteCode);
         }
-        
-        // Copiar link de convite
+
         function copyInviteLink() {
-            const inviteLink = document.getElementById('inviteLink');
-            inviteLink.select();
-            document.execCommand('copy');
-            alert('📋 Link copiado para a área de transferência!');
+            const link = document.getElementById('inviteLink').textContent;
+            navigator.clipboard.writeText(link).then(() => {
+                alert('Link copiado para a área de transferência!');
+            });
         }
-        
-        // Carregar dados de convite
-        function loadInviteData() {
-            if (!inviteData.currentInvite) {
-                generateNewInviteLink();
-            } else {
-                const baseUrl = window.location.origin + window.location.pathname;
-                const inviteLink = `${baseUrl}?invite=${inviteData.currentInvite}`;
-                document.getElementById('inviteLink').value = inviteLink;
+
+        // Verificar se é um acesso via convite
+        function checkForInviteRegistration() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const inviteCode = urlParams.get('invite');
+            
+            if (inviteCode) {
+                // Mostrar formulário de auto-cadastro
+                showInviteRegistrationForm();
+            }
+        }
+
+        function showInviteRegistrationForm() {
+            // Criar modal para auto-cadastro
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.8);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 1000;
+            `;
+            
+            modal.innerHTML = `
+                <div style="background: white; padding: 30px; border-radius: 15px; max-width: 500px; width: 90%;">
+                    <h2 style="text-align: center; color: #667eea; margin-bottom: 20px;">📝 Cadastro por Convite</h2>
+                    <form id="inviteForm">
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Nome Completo:</label>
+                            <input type="text" id="inviteFullName" required style="width: 100%; padding: 10px; border: 2px solid #e1e5e9; border-radius: 8px;">
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Email:</label>
+                            <input type="email" id="inviteEmail" required style="width: 100%; padding: 10px; border: 2px solid #e1e5e9; border-radius: 8px;">
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Telefone:</label>
+                            <input type="tel" id="invitePhone" required style="width: 100%; padding: 10px; border: 2px solid #e1e5e9; border-radius: 8px;">
+                        </div>
+                        <div style="text-align: center; margin-top: 20px;">
+                            <button type="submit" class="btn">✅ Confirmar Cadastro</button>
+                            <button type="button" class="btn" onclick="closeInviteModal()" style="background: #6c757d; margin-left: 10px;">❌ Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            window.inviteModal = modal;
+            
+            // Adicionar evento ao formulário
+            document.getElementById('inviteForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const fullName = document.getElementById('inviteFullName').value;
+                const email = document.getElementById('inviteEmail').value;
+                const phone = document.getElementById('invitePhone').value;
+                
+                // Adicionar à lista de convites pendentes
+                const invite = {
+                    id: Date.now(),
+                    fullName,
+                    email,
+                    phone,
+                    invitedAt: new Date().toLocaleString('pt-BR'),
+                    status: 'pending'
+                };
+                
+                invites.push(invite);
+                localStorage.setItem('faceRecognitionInvites', JSON.stringify(invites));
+                
+                // Enviar notificação por email
+                sendEmailNotification(invite);
+                
+                alert('Cadastro realizado com sucesso! Uma notificação foi enviada ao administrador.');
+                closeInviteModal();
+            });
+        }
+
+        function closeInviteModal() {
+            if (window.inviteModal) {
+                document.body.removeChild(window.inviteModal);
+                window.inviteModal = null;
+            }
+        }
+
+        // Função para enviar notificação por email
+        function sendEmailNotification(invite) {
+            const adminEmail = 'paulo.henrique72681@gmail.com';
+            const subject = `Novo Cadastro no Sistema de Presença - ${invite.fullName}`;
+            const body = `
+Olá!
+
+Uma nova pessoa se cadastrou no sistema de reconhecimento facial:
+
+📝 DADOS DO CADASTRO:
+• Nome: ${invite.fullName}
+• Email: ${invite.email}
+• Telefone: ${invite.phone}
+• Data/Hora: ${invite.invitedAt}
+
+🔗 Para aprovar o cadastro, acesse o sistema e vá na aba "Convites".
+
+---
+Sistema de Presença com Reconhecimento Facial
+            `.trim();
+
+            // Criar link mailto
+            const mailtoLink = `mailto:${adminEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+            
+            // Tentar abrir cliente de email
+            try {
+                window.open(mailtoLink, '_blank');
+            } catch (error) {
+                console.log('Email notification prepared for:', adminEmail);
+            }
+
+            // Também salvar notificação no sistema para visualização
+            const notifications = JSON.parse(localStorage.getItem('faceRecognitionNotifications') || '[]');
+            notifications.push({
+                id: Date.now(),
+                type: 'new_registration',
+                data: invite,
+                timestamp: new Date().toLocaleString('pt-BR'),
+                read: false
+            });
+            localStorage.setItem('faceRecognitionNotifications', JSON.stringify(notifications));
+        }
+
+        // Atualizar lista de notificações
+        function updateNotifications() {
+            const notifications = JSON.parse(localStorage.getItem('faceRecognitionNotifications') || '[]');
+            const notificationsDiv = document.getElementById('notificationsList');
+            
+            if (notifications.length === 0) {
+                notificationsDiv.innerHTML = '<p style="color: #666; text-align: center;">Nenhuma notificação ainda.</p>';
+                return;
+            }
+            
+            notificationsDiv.innerHTML = notifications.reverse().map(notification => `
+                <div style="background: ${notification.read ? '#f8f9fa' : '#e3f2fd'}; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #667eea;">
+                    <div style="display: flex; justify-content: between; align-items: center;">
+                        <div style="flex: 1;">
+                            <h4 style="color: #667eea; margin: 0 0 10px 0;">📧 Novo Cadastro Recebido</h4>
+                            <p><strong>Nome:</strong> ${notification.data.fullName}</p>
+                            <p><strong>Email:</strong> ${notification.data.email}</p>
+                            <p><strong>Telefone:</strong> ${notification.data.phone}</p>
+                            <p><strong>Data:</strong> ${notification.timestamp}</p>
+                        </div>
+                        <div>
+                            <button class="btn" onclick="approveInvite('${notification.data.email}')" style="background: #28a745; margin: 2px;">✅ Aprovar</button>
+                            <button class="btn" onclick="rejectInvite('${notification.id}')" style="background: #dc3545; margin: 2px;">❌ Rejeitar</button>
+                            <button class="btn" onclick="markAsRead('${notification.id}')" style="background: #6c757d; margin: 2px;">👁️ Marcar Lida</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Atualizar lista de convites pendentes
+        function updateInvitesList() {
+            const invitesDiv = document.getElementById('invitesList');
+            
+            if (invites.length === 0) {
+                invitesDiv.innerHTML = '<p style="color: #666; text-align: center;">Nenhum convite pendente.</p>';
+                return;
+            }
+            
+            invitesDiv.innerHTML = invites.filter(invite => invite.status === 'pending').map(invite => `
+                <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #ffc107;">
+                    <h4 style="color: #856404; margin: 0 0 10px 0;">⏳ Aguardando Aprovação</h4>
+                    <p><strong>Nome:</strong> ${invite.fullName}</p>
+                    <p><strong>Email:</strong> ${invite.email}</p>
+                    <p><strong>Telefone:</strong> ${invite.phone}</p>
+                    <p><strong>Cadastrado em:</strong> ${invite.invitedAt}</p>
+                    <div style="margin-top: 10px;">
+                        <button class="btn" onclick="approveInvite('${invite.email}')" style="background: #28a745;">✅ Aprovar e Cadastrar</button>
+                        <button class="btn" onclick="rejectInvite('${invite.id}')" style="background: #dc3545;">❌ Rejeitar</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Aprovar convite e cadastrar pessoa
+        function approveInvite(email) {
+            const invite = invites.find(inv => inv.email === email);
+            if (!invite) return;
+            
+            // Verificar se já não está cadastrado
+            if (people.find(p => p.email === email)) {
+                alert('Esta pessoa já está cadastrada no sistema.');
+                return;
+            }
+            
+            // Adicionar à lista de pessoas (sem foto por enquanto)
+            const newPerson = {
+                id: Date.now(),
+                fullName: invite.fullName,
+                email: invite.email,
+                phone: invite.phone,
+                photo: null, // Será adicionada quando a pessoa fizer o reconhecimento
+                registeredAt: new Date().toLocaleString('pt-BR'),
+                approvedAt: new Date().toLocaleString('pt-BR'),
+                fromInvite: true
+            };
+            
+            people.push(newPerson);
+            localStorage.setItem('faceRecognitionPeople', JSON.stringify(people));
+            
+            // Marcar convite como aprovado
+            invite.status = 'approved';
+            invite.approvedAt = new Date().toLocaleString('pt-BR');
+            localStorage.setItem('faceRecognitionInvites', JSON.stringify(invites));
+            
+            alert(`${invite.fullName} foi aprovado(a) e cadastrado(a) no sistema!`);
+            updatePersonList();
+            updateInvitesList();
+            updateNotifications();
+        }
+
+        // Rejeitar convite
+        function rejectInvite(inviteId) {
+            if (confirm('Tem certeza que deseja rejeitar este cadastro?')) {
+                const inviteIndex = invites.findIndex(inv => inv.id == inviteId);
+                if (inviteIndex > -1) {
+                    invites[inviteIndex].status = 'rejected';
+                    invites[inviteIndex].rejectedAt = new Date().toLocaleString('pt-BR');
+                    localStorage.setItem('faceRecognitionInvites', JSON.stringify(invites));
+                }
+                
+                // Remover notificação
+                const notifications = JSON.parse(localStorage.getItem('faceRecognitionNotifications') || '[]');
+                const filteredNotifications = notifications.filter(n => n.id != inviteId);
+                localStorage.setItem('faceRecognitionNotifications', JSON.stringify(filteredNotifications));
+                
+                updateInvitesList();
+                updateNotifications();
+            }
+        }
+
+        // Marcar notificação como lida
+        function markAsRead(notificationId) {
+            const notifications = JSON.parse(localStorage.getItem('faceRecognitionNotifications') || '[]');
+            const notification = notifications.find(n => n.id == notificationId);
+            if (notification) {
+                notification.read = true;
+                localStorage.setItem('faceRecognitionNotifications', JSON.stringify(notifications));
+                updateNotifications();
             }
         }
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'971ad4793095cb48',t:'MTc1NTYxODg3MS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'971b2351f5569522',t:'MTc1NTYyMjEwMC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

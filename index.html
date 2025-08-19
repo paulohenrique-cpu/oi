@@ -188,6 +188,17 @@
             border-left: 5px solid #28a745;
         }
         
+        .person-card.facial-only {
+            background: #fff3cd;
+            border-left: 5px solid #ffc107;
+        }
+        
+        .person-card.confirmed {
+            background: #d1ecf1;
+            border-left: 5px solid #17a2b8;
+            box-shadow: 0 4px 20px rgba(23, 162, 184, 0.3);
+        }
+        
         .person-info h3 {
             color: #667eea;
             margin-bottom: 10px;
@@ -215,6 +226,38 @@
         .status.absent {
             background: #dc3545;
             color: white;
+        }
+        
+        .status.facial-only {
+            background: #ffc107;
+            color: #212529;
+        }
+        
+        .status.confirmed {
+            background: #17a2b8;
+            color: white;
+        }
+        
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(255,255,255,0.7);
+            border-radius: 8px;
+        }
+        
+        .checkbox-container input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        
+        .checkbox-container label {
+            cursor: pointer;
+            font-weight: bold;
+            margin: 0;
         }
         
         .recognition-result {
@@ -355,12 +398,37 @@
             <!-- Aba de Lista -->
             <div id="list" class="tab-content">
                 <h2>Lista de Presença</h2>
+                
+                <div class="attendance-summary" style="background: #e3f2fd; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                    <h3 style="color: #1976d2; margin-bottom: 15px;">📊 Resumo da Presença</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div style="background: white; padding: 15px; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 24px; font-weight: bold; color: #28a745;" id="presentCount">0</div>
+                            <div style="color: #666;">✅ Presentes</div>
+                        </div>
+                        <div style="background: white; padding: 15px; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 24px; font-weight: bold; color: #dc3545;" id="absentCount">0</div>
+                            <div style="color: #666;">❌ Ausentes</div>
+                        </div>
+                        <div style="background: white; padding: 15px; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 24px; font-weight: bold; color: #ffc107;" id="facialOnlyCount">0</div>
+                            <div style="color: #666;">🤖 Só Facial</div>
+                        </div>
+                        <div style="background: white; padding: 15px; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 24px; font-weight: bold; color: #17a2b8;" id="confirmedCount">0</div>
+                            <div style="color: #666;">✅✅ Confirmados</div>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="controls">
                     <button class="btn" onclick="exportAttendance()">📊 Exportar Lista</button>
                     <button class="btn" onclick="exportBackup()">💾 Fazer Backup</button>
                     <button class="btn" onclick="generateTemplate()">📋 Gerar Planilha Modelo</button>
                     <button class="btn" onclick="document.getElementById('importFile').click()">📥 Importar Planilha</button>
                     <button class="btn" onclick="clearAttendance()">🔄 Limpar Presenças</button>
+                    <button class="btn" onclick="markAllPresent()" style="background: #28a745;">✅ Marcar Todos Presentes</button>
+                    <button class="btn" onclick="confirmAllFacial()" style="background: #17a2b8;">✅✅ Confirmar Todos Faciais</button>
                 </div>
                 <input type="file" id="importFile" accept=".csv,.xlsx,.xls,.json" style="display: none;" onchange="importFromFile(event)">
                 <div id="personList" class="person-list"></div>
@@ -861,11 +929,13 @@ Deseja continuar?`;
                 const recognizedPerson = await findMatchingPerson(imageData);
                 
                 if (recognizedPerson) {
-                    // Marcar presença
+                    // Marcar presença por reconhecimento facial
                     attendance[recognizedPerson.email] = {
                         name: recognizedPerson.fullName,
                         time: new Date().toLocaleString('pt-BR'),
-                        present: true
+                        present: true,
+                        method: 'facial',
+                        confirmed: false
                     };
                     
                     saveDataToHTML(); // Sincronizar automaticamente
@@ -1001,31 +1071,88 @@ Deseja continuar?`;
             
             if (people.length === 0) {
                 listDiv.innerHTML = '<p style="text-align: center; color: #666; font-size: 18px;">Nenhuma pessoa cadastrada ainda.</p>';
+                updateAttendanceSummary();
                 return;
             }
             
             listDiv.innerHTML = people.map(person => {
-                const isPresent = attendance[person.email]?.present || false;
-                const attendanceTime = attendance[person.email]?.time || '';
+                const attendanceData = attendance[person.email];
+                const isPresent = attendanceData?.present || false;
+                const method = attendanceData?.method || '';
+                const confirmed = attendanceData?.confirmed || false;
+                const attendanceTime = attendanceData?.time || '';
+                
+                // Determinar status e classe CSS
+                let statusClass = 'absent';
+                let statusText = '❌ Ausente';
+                let cardClass = '';
+                
+                if (isPresent) {
+                    if (method === 'facial' && !confirmed) {
+                        statusClass = 'facial-only';
+                        statusText = '🤖 Reconhecido (Facial)';
+                        cardClass = 'facial-only';
+                    } else if (method === 'manual' || confirmed) {
+                        statusClass = 'confirmed';
+                        statusText = confirmed ? '✅✅ Confirmado' : '✅ Presente (Manual)';
+                        cardClass = 'confirmed';
+                    } else {
+                        statusClass = 'present';
+                        statusText = '✅ Presente';
+                        cardClass = 'present';
+                    }
+                }
                 
                 return `
-                    <div class="person-card ${isPresent ? 'present' : ''}">
+                    <div class="person-card ${cardClass}">
                         <div class="person-info">
                             <h3>${person.fullName}</h3>
                             <p><strong>Email:</strong> ${person.email}</p>
                             <p><strong>Telefone:</strong> ${person.phone}</p>
                             <p><strong>Cadastrado em:</strong> ${person.registeredAt}</p>
                             ${isPresent ? `<p><strong>Presente desde:</strong> ${attendanceTime}</p>` : ''}
-                            <span class="status ${isPresent ? 'present' : 'absent'}">
-                                ${isPresent ? '✅ Presente' : '❌ Ausente'}
+                            ${method ? `<p><strong>Método:</strong> ${method === 'facial' ? '🤖 Reconhecimento Facial' : '✅ Marcação Manual'}</p>` : ''}
+                            
+                            <span class="status ${statusClass}">
+                                ${statusText}
                             </span>
+                            
+                            <!-- Controles de Presença -->
+                            <div style="margin-top: 15px; padding: 15px; background: rgba(255,255,255,0.5); border-radius: 8px;">
+                                <h4 style="margin: 0 0 10px 0; color: #555;">📋 Controle de Presença:</h4>
+                                
+                                <div class="checkbox-container">
+                                    <input type="checkbox" id="manual_${person.email}" 
+                                           ${isPresent && method === 'manual' ? 'checked' : ''} 
+                                           onchange="toggleManualAttendance('${person.email}')">
+                                    <label for="manual_${person.email}">✅ Marcar Presente Manualmente</label>
+                                </div>
+                                
+                                ${method === 'facial' && !confirmed ? `
+                                    <div class="checkbox-container" style="background: rgba(255, 193, 7, 0.2);">
+                                        <input type="checkbox" id="confirm_${person.email}" 
+                                               onchange="confirmFacialAttendance('${person.email}')">
+                                        <label for="confirm_${person.email}">✅✅ Confirmar Reconhecimento Facial</label>
+                                    </div>
+                                ` : ''}
+                                
+                                ${isPresent ? `
+                                    <button class="btn" onclick="removeAttendance('${person.email}')" 
+                                            style="background: #dc3545; font-size: 14px; padding: 8px 16px;">
+                                        ❌ Remover Presença
+                                    </button>
+                                ` : ''}
+                            </div>
                         </div>
+                        
                         <div style="margin-top: 15px;">
-                            <button class="btn" onclick="removePerson('${person.email}')" style="background: #dc3545;">🗑️ Remover</button>
+                            <button class="btn" onclick="removePerson('${person.email}')" style="background: #dc3545;">🗑️ Remover Pessoa</button>
                         </div>
                     </div>
                 `;
             }).join('');
+            
+            updateAttendanceSummary();
         }
 
         // Remover pessoa
@@ -1041,26 +1168,78 @@ Deseja continuar?`;
 
         // Exportar lista de presença
         function exportAttendance() {
-            const attendanceData = people.map(person => ({
-                nome: person.fullName,
-                email: person.email,
-                telefone: person.phone,
-                presente: attendance[person.email]?.present ? 'Sim' : 'Não',
-                horario: attendance[person.email]?.time || 'N/A'
-            }));
+            const attendanceData = people.map(person => {
+                const attendanceInfo = attendance[person.email];
+                const isPresent = attendanceInfo?.present || false;
+                const method = attendanceInfo?.method || '';
+                const confirmed = attendanceInfo?.confirmed || false;
+                
+                let status = 'Ausente';
+                if (isPresent) {
+                    if (method === 'facial' && !confirmed) {
+                        status = 'Reconhecido (Não Confirmado)';
+                    } else if (method === 'facial' && confirmed) {
+                        status = 'Reconhecido e Confirmado';
+                    } else if (method === 'manual') {
+                        status = 'Presente (Manual)';
+                    } else {
+                        status = 'Presente';
+                    }
+                }
+                
+                return {
+                    nome: person.fullName,
+                    email: person.email,
+                    telefone: person.phone,
+                    status: status,
+                    metodo: method === 'facial' ? 'Reconhecimento Facial' : method === 'manual' ? 'Marcação Manual' : 'N/A',
+                    confirmado: confirmed ? 'Sim' : 'Não',
+                    horario: attendanceInfo?.time || 'N/A',
+                    confirmadoEm: attendanceInfo?.confirmedAt || 'N/A'
+                };
+            });
             
             const csv = [
-                ['Nome', 'Email', 'Telefone', 'Presente', 'Horário'],
-                ...attendanceData.map(row => [row.nome, row.email, row.telefone, row.presente, row.horario])
+                ['Nome', 'Email', 'Telefone', 'Status', 'Método', 'Confirmado', 'Horário Presença', 'Horário Confirmação'],
+                ...attendanceData.map(row => [
+                    row.nome, row.email, row.telefone, row.status, 
+                    row.metodo, row.confirmado, row.horario, row.confirmadoEm
+                ])
             ].map(row => row.join(',')).join('\n');
             
-            const blob = new Blob([csv], { type: 'text/csv' });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `lista_presenca_${new Date().toISOString().split('T')[0]}.csv`;
+            a.download = `lista_presenca_detalhada_${new Date().toISOString().split('T')[0]}.csv`;
             a.click();
             window.URL.revokeObjectURL(url);
+            
+            // Mostrar resumo da exportação
+            const summary = {
+                total: people.length,
+                ausentes: attendanceData.filter(p => p.status === 'Ausente').length,
+                reconhecidos: attendanceData.filter(p => p.status.includes('Reconhecido')).length,
+                manuais: attendanceData.filter(p => p.status.includes('Manual')).length,
+                confirmados: attendanceData.filter(p => p.confirmado === 'Sim').length
+            };
+            
+            alert(`📊 LISTA EXPORTADA COM SUCESSO!
+
+📁 Arquivo: lista_presenca_detalhada_${new Date().toISOString().split('T')[0]}.csv
+
+📈 RESUMO:
+• Total de pessoas: ${summary.total}
+• Ausentes: ${summary.ausentes}
+• Reconhecidos facialmente: ${summary.reconhecidos}
+• Marcados manualmente: ${summary.manuais}
+• Confirmados: ${summary.confirmados}
+
+✨ NOVOS CAMPOS INCLUSOS:
+• Status detalhado da presença
+• Método de marcação (Facial/Manual)
+• Se foi confirmado ou não
+• Horário da confirmação`);
         }
 
         // Fazer backup completo do sistema
@@ -1298,6 +1477,118 @@ Deseja continuar?`;
             }
         }
 
+        // Atualizar resumo de presença
+        function updateAttendanceSummary() {
+            let presentCount = 0;
+            let absentCount = 0;
+            let facialOnlyCount = 0;
+            let confirmedCount = 0;
+            
+            people.forEach(person => {
+                const attendanceData = attendance[person.email];
+                const isPresent = attendanceData?.present || false;
+                const method = attendanceData?.method || '';
+                const confirmed = attendanceData?.confirmed || false;
+                
+                if (!isPresent) {
+                    absentCount++;
+                } else if (method === 'facial' && !confirmed) {
+                    facialOnlyCount++;
+                } else if (confirmed || method === 'manual') {
+                    confirmedCount++;
+                } else {
+                    presentCount++;
+                }
+            });
+            
+            document.getElementById('presentCount').textContent = presentCount;
+            document.getElementById('absentCount').textContent = absentCount;
+            document.getElementById('facialOnlyCount').textContent = facialOnlyCount;
+            document.getElementById('confirmedCount').textContent = confirmedCount;
+        }
+        
+        // Marcar presença manual
+        function toggleManualAttendance(email) {
+            const checkbox = document.getElementById(`manual_${email}`);
+            const person = people.find(p => p.email === email);
+            
+            if (checkbox.checked) {
+                attendance[email] = {
+                    name: person.fullName,
+                    time: new Date().toLocaleString('pt-BR'),
+                    present: true,
+                    method: 'manual',
+                    confirmed: true
+                };
+            } else {
+                delete attendance[email];
+            }
+            
+            saveDataToHTML();
+            updatePersonList();
+        }
+        
+        // Confirmar reconhecimento facial
+        function confirmFacialAttendance(email) {
+            if (attendance[email] && attendance[email].method === 'facial') {
+                attendance[email].confirmed = true;
+                attendance[email].confirmedAt = new Date().toLocaleString('pt-BR');
+                
+                saveDataToHTML();
+                updatePersonList();
+            }
+        }
+        
+        // Remover presença específica
+        function removeAttendance(email) {
+            if (confirm('Remover a presença desta pessoa?')) {
+                delete attendance[email];
+                saveDataToHTML();
+                updatePersonList();
+            }
+        }
+        
+        // Marcar todos como presentes
+        function markAllPresent() {
+            if (confirm('Marcar TODAS as pessoas como presentes manualmente?')) {
+                people.forEach(person => {
+                    attendance[person.email] = {
+                        name: person.fullName,
+                        time: new Date().toLocaleString('pt-BR'),
+                        present: true,
+                        method: 'manual',
+                        confirmed: true
+                    };
+                });
+                
+                saveDataToHTML();
+                updatePersonList();
+                alert('✅ Todas as pessoas foram marcadas como presentes!');
+            }
+        }
+        
+        // Confirmar todos os reconhecimentos faciais
+        function confirmAllFacial() {
+            let facialCount = 0;
+            
+            people.forEach(person => {
+                const attendanceData = attendance[person.email];
+                if (attendanceData && attendanceData.method === 'facial' && !attendanceData.confirmed) {
+                    attendanceData.confirmed = true;
+                    attendanceData.confirmedAt = new Date().toLocaleString('pt-BR');
+                    facialCount++;
+                }
+            });
+            
+            if (facialCount > 0) {
+                saveDataToHTML();
+                updatePersonList();
+                alert(`✅ ${facialCount} reconhecimentos faciais foram confirmados!`);
+            } else {
+                alert('ℹ️ Não há reconhecimentos faciais pendentes de confirmação.');
+            }
+        }
+        
         // Limpar presenças
         function clearAttendance() {
             if (confirm('Tem certeza que deseja limpar todas as presenças?')) {
@@ -1579,5 +1870,5 @@ Sistema de Presença com Reconhecimento Facial
             }
         }
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'971b3efee1e1e0e2',t:'MTc1NTYyMzIzNC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'971b4a0fb7b2ba31',t:'MTc1NTYyMzY4Ny4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

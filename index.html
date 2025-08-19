@@ -316,8 +316,12 @@
                 <h2>Lista de Presença</h2>
                 <div class="controls">
                     <button class="btn" onclick="exportAttendance()">📊 Exportar Lista</button>
+                    <button class="btn" onclick="exportBackup()">💾 Fazer Backup</button>
+                    <button class="btn" onclick="generateTemplate()">📋 Gerar Planilha Modelo</button>
+                    <button class="btn" onclick="document.getElementById('importFile').click()">📥 Importar Planilha</button>
                     <button class="btn" onclick="clearAttendance()">🔄 Limpar Presenças</button>
                 </div>
+                <input type="file" id="importFile" accept=".csv,.xlsx,.xls" style="display: none;" onchange="importFromFile(event)">
                 <div id="personList" class="person-list"></div>
             </div>
             
@@ -663,6 +667,244 @@
             window.URL.revokeObjectURL(url);
         }
 
+        // Fazer backup completo do sistema
+        function exportBackup() {
+            const backupData = {
+                people: people,
+                attendance: attendance,
+                invites: invites,
+                notifications: JSON.parse(localStorage.getItem('faceRecognitionNotifications') || '[]'),
+                exportDate: new Date().toISOString(),
+                version: '1.0'
+            };
+            
+            const json = JSON.stringify(backupData, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `backup_sistema_presenca_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+            
+            alert('✅ Backup realizado com sucesso! Arquivo salvo com todos os dados do sistema.');
+        }
+
+        // Gerar planilha modelo para preenchimento
+        function generateTemplate() {
+            // Criar planilha modelo com exemplos
+            const templateData = [
+                ['Nome', 'Email', 'Telefone'],
+                ['João Silva', 'joao.silva@email.com', '11999999999'],
+                ['Maria Santos', 'maria.santos@email.com', '11888888888'],
+                ['Pedro Oliveira', 'pedro.oliveira@email.com', '11777777777'],
+                ['Ana Costa', 'ana.costa@email.com', '11666666666'],
+                ['Carlos Ferreira', 'carlos.ferreira@email.com', '11555555555'],
+                ['', '', ''],
+                ['', '', ''],
+                ['', '', ''],
+                ['', '', ''],
+                ['', '', '']
+            ];
+            
+            // Converter para CSV
+            const csv = templateData.map(row => row.join(',')).join('\n');
+            
+            // Criar arquivo para download
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `modelo_cadastro_pessoas_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+            
+            // Mostrar instruções
+            alert(`📋 PLANILHA MODELO GERADA!
+
+✅ Arquivo baixado: modelo_cadastro_pessoas_${new Date().toISOString().split('T')[0]}.csv
+
+📝 COMO USAR:
+1. Abra o arquivo no Excel, Google Sheets ou LibreOffice
+2. Substitua os dados de exemplo pelos dados reais
+3. Mantenha o cabeçalho (Nome, Email, Telefone)
+4. Preencha uma pessoa por linha
+5. Salve como CSV
+6. Use o botão "📥 Importar Planilha" para carregar no sistema
+
+⚠️ IMPORTANTE:
+• Nome e Email são obrigatórios
+• Telefone é opcional
+• Não altere o cabeçalho da planilha
+• Emails devem ser únicos (não repetir)`);
+        }
+
+        // Importar dados de planilha ou backup
+        function importFromFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const content = e.target.result;
+                    
+                    if (file.name.endsWith('.json')) {
+                        // Importar backup completo
+                        importBackup(content);
+                    } else if (file.name.endsWith('.csv')) {
+                        // Importar planilha CSV
+                        importCSV(content);
+                    } else {
+                        alert('❌ Formato de arquivo não suportado. Use apenas .csv ou .json');
+                    }
+                } catch (error) {
+                    alert('❌ Erro ao ler arquivo: ' + error.message);
+                }
+            };
+            
+            reader.readAsText(file);
+            event.target.value = ''; // Limpar input
+        }
+
+        // Importar backup completo
+        function importBackup(jsonContent) {
+            try {
+                const backupData = JSON.parse(jsonContent);
+                
+                if (!backupData.people || !Array.isArray(backupData.people)) {
+                    throw new Error('Arquivo de backup inválido');
+                }
+                
+                const confirmMessage = `
+🔄 RESTAURAR BACKUP
+
+Dados encontrados:
+• ${backupData.people.length} pessoas cadastradas
+• ${Object.keys(backupData.attendance || {}).length} registros de presença
+• ${(backupData.invites || []).length} convites
+• Data do backup: ${new Date(backupData.exportDate).toLocaleString('pt-BR')}
+
+⚠️ ATENÇÃO: Todos os dados atuais serão substituídos!
+
+Deseja continuar?`;
+                
+                if (confirm(confirmMessage)) {
+                    // Restaurar dados
+                    people = backupData.people;
+                    attendance = backupData.attendance || {};
+                    invites = backupData.invites || [];
+                    
+                    // Salvar no localStorage
+                    localStorage.setItem('faceRecognitionPeople', JSON.stringify(people));
+                    localStorage.setItem('faceRecognitionAttendance', JSON.stringify(attendance));
+                    localStorage.setItem('faceRecognitionInvites', JSON.stringify(invites));
+                    
+                    if (backupData.notifications) {
+                        localStorage.setItem('faceRecognitionNotifications', JSON.stringify(backupData.notifications));
+                    }
+                    
+                    // Atualizar interface
+                    updatePersonList();
+                    updateInvitesList();
+                    updateNotifications();
+                    
+                    alert('✅ Backup restaurado com sucesso!');
+                }
+            } catch (error) {
+                alert('❌ Erro ao importar backup: ' + error.message);
+            }
+        }
+
+        // Importar planilha CSV
+        function importCSV(csvContent) {
+            try {
+                const lines = csvContent.split('\n').filter(line => line.trim());
+                if (lines.length < 2) {
+                    throw new Error('Planilha deve ter pelo menos um cabeçalho e uma linha de dados');
+                }
+                
+                const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+                const requiredFields = ['nome', 'email'];
+                
+                // Verificar se tem campos obrigatórios
+                const hasRequiredFields = requiredFields.every(field => 
+                    headers.some(header => header.includes(field))
+                );
+                
+                if (!hasRequiredFields) {
+                    throw new Error('Planilha deve conter pelo menos as colunas: Nome, Email');
+                }
+                
+                const newPeople = [];
+                const errors = [];
+                
+                for (let i = 1; i < lines.length; i++) {
+                    const values = lines[i].split(',').map(v => v.trim());
+                    
+                    if (values.length < headers.length) continue;
+                    
+                    const person = {};
+                    headers.forEach((header, index) => {
+                        if (header.includes('nome')) person.fullName = values[index];
+                        else if (header.includes('email')) person.email = values[index];
+                        else if (header.includes('telefone') || header.includes('phone')) person.phone = values[index];
+                    });
+                    
+                    // Validar dados obrigatórios
+                    if (!person.fullName || !person.email) {
+                        errors.push(`Linha ${i + 1}: Nome ou email em branco`);
+                        continue;
+                    }
+                    
+                    // Verificar se email já existe
+                    if (people.find(p => p.email === person.email)) {
+                        errors.push(`Linha ${i + 1}: Email ${person.email} já cadastrado`);
+                        continue;
+                    }
+                    
+                    // Adicionar campos padrão
+                    person.id = Date.now() + i;
+                    person.phone = person.phone || '';
+                    person.photo = null;
+                    person.registeredAt = new Date().toLocaleString('pt-BR');
+                    person.fromImport = true;
+                    
+                    newPeople.push(person);
+                }
+                
+                if (newPeople.length === 0) {
+                    throw new Error('Nenhuma pessoa válida encontrada na planilha');
+                }
+                
+                // Mostrar resumo da importação
+                let message = `📊 IMPORTAÇÃO DE PLANILHA\n\n`;
+                message += `✅ ${newPeople.length} pessoas serão adicionadas\n`;
+                if (errors.length > 0) {
+                    message += `⚠️ ${errors.length} erros encontrados:\n`;
+                    message += errors.slice(0, 5).join('\n');
+                    if (errors.length > 5) {
+                        message += `\n... e mais ${errors.length - 5} erros`;
+                    }
+                    message += '\n\n';
+                }
+                message += 'Deseja continuar com a importação?';
+                
+                if (confirm(message)) {
+                    // Adicionar pessoas à lista
+                    people.push(...newPeople);
+                    localStorage.setItem('faceRecognitionPeople', JSON.stringify(people));
+                    
+                    updatePersonList();
+                    
+                    alert(`✅ Importação concluída!\n\n• ${newPeople.length} pessoas adicionadas\n• ${errors.length} erros ignorados`);
+                }
+                
+            } catch (error) {
+                alert('❌ Erro ao importar planilha: ' + error.message + '\n\nFormato esperado:\nNome,Email,Telefone\nJoão Silva,joao@email.com,11999999999');
+            }
+        }
+
         // Limpar presenças
         function clearAttendance() {
             if (confirm('Tem certeza que deseja limpar todas as presenças?')) {
@@ -944,5 +1186,5 @@ Sistema de Presença com Reconhecimento Facial
             }
         }
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'971b2351f5569522',t:'MTc1NTYyMjEwMC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'971b3475e4bedf41',t:'MTc1NTYyMjgwMy4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

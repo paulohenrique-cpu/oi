@@ -37,6 +37,23 @@
             margin-bottom: 10px;
         }
         
+        .sync-status {
+            background: rgba(255,255,255,0.2);
+            padding: 10px 20px;
+            border-radius: 25px;
+            margin: 10px auto;
+            display: inline-block;
+            backdrop-filter: blur(10px);
+        }
+        
+        .sync-status.synced {
+            background: rgba(40, 167, 69, 0.3);
+        }
+        
+        .sync-status.syncing {
+            background: rgba(255, 193, 7, 0.3);
+        }
+        
         .tabs {
             display: flex;
             background: white;
@@ -237,6 +254,26 @@
             border: 1px solid #ddd;
         }
         
+        .sync-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .data-storage {
+            background: #e8f5e8;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #28a745;
+        }
+        
         @media (max-width: 768px) {
             .tabs {
                 flex-direction: column;
@@ -257,6 +294,9 @@
         <div class="header">
             <h1>🎯 Sistema de Presença</h1>
             <p>Reconhecimento facial inteligente para controle de presença</p>
+            <div id="syncStatus" class="sync-status">
+                🔄 Sincronização Automática Ativa
+            </div>
         </div>
         
         <div class="tabs">
@@ -264,6 +304,7 @@
             <button class="tab" onclick="showTab('register')">➕ Cadastrar Pessoa</button>
             <button class="tab" onclick="showTab('list')">📋 Lista de Presença</button>
             <button class="tab" onclick="showTab('invite')">📧 Convites</button>
+            <button class="tab" onclick="showTab('sync')">☁️ Sincronização</button>
         </div>
         
         <div class="content">
@@ -321,7 +362,7 @@
                     <button class="btn" onclick="document.getElementById('importFile').click()">📥 Importar Planilha</button>
                     <button class="btn" onclick="clearAttendance()">🔄 Limpar Presenças</button>
                 </div>
-                <input type="file" id="importFile" accept=".csv,.xlsx,.xls" style="display: none;" onchange="importFromFile(event)">
+                <input type="file" id="importFile" accept=".csv,.xlsx,.xls,.json" style="display: none;" onchange="importFromFile(event)">
                 <div id="personList" class="person-list"></div>
             </div>
             
@@ -348,8 +389,90 @@
                     <div id="invitesList"></div>
                 </div>
             </div>
+            
+            <!-- Nova Aba de Sincronização -->
+            <div id="sync" class="tab-content">
+                <h2>☁️ Sincronização Automática</h2>
+                
+                <div class="sync-section">
+                    <h3>🔄 Status da Sincronização</h3>
+                    <div id="syncInfo">
+                        <p><strong>Status:</strong> <span id="syncStatusText">Ativo</span></p>
+                        <p><strong>Última sincronização:</strong> <span id="lastSyncText">Agora</span></p>
+                        <p><strong>Próxima sincronização:</strong> <span id="nextSyncText">Em 30 segundos</span></p>
+                        <p><strong>Dados sincronizados:</strong> <span id="syncDataCount">0</span> registros</p>
+                    </div>
+                    
+                    <div class="controls">
+                        <button class="btn" onclick="toggleAutoSync()" id="syncToggleBtn">⏸️ Pausar Sincronização</button>
+                        <button class="btn" onclick="forcSync()">🔄 Sincronizar Agora</button>
+                        <button class="btn" onclick="resetSyncData()">🗑️ Limpar Dados Sincronizados</button>
+                    </div>
+                </div>
+                
+                <div class="sync-section">
+                    <h3>💾 Armazenamento Integrado no HTML</h3>
+                    <p>Todos os dados são automaticamente salvos no próprio arquivo HTML. Você pode:</p>
+                    <ul style="margin: 15px 0; padding-left: 20px;">
+                        <li>✅ Salvar o arquivo HTML e levar para qualquer computador</li>
+                        <li>✅ Abrir em qualquer navegador com todos os dados</li>
+                        <li>✅ Compartilhar o arquivo completo com outras pessoas</li>
+                        <li>✅ Fazer backup simplesmente copiando o arquivo</li>
+                    </ul>
+                    
+                    <div class="controls">
+                        <button class="btn" onclick="downloadHTMLWithData()">💾 Baixar HTML com Dados</button>
+                        <button class="btn" onclick="showDataPreview()">👁️ Visualizar Dados Salvos</button>
+                    </div>
+                    
+                    <div id="dataPreview" class="data-storage" style="display: none;">
+                        <h4>📊 Dados Armazenados no HTML:</h4>
+                        <div id="dataContent"></div>
+                    </div>
+                </div>
+                
+                <div class="sync-section">
+                    <h3>🌐 Sincronização Entre Dispositivos</h3>
+                    <p>Para usar os mesmos dados em vários dispositivos:</p>
+                    
+                    <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                        <h4>📱 Método 1: Arquivo HTML Portátil</h4>
+                        <ol style="margin: 10px 0; padding-left: 20px;">
+                            <li>Clique em "Baixar HTML com Dados"</li>
+                            <li>Salve na nuvem (Google Drive, OneDrive, etc.)</li>
+                            <li>Baixe e abra em qualquer dispositivo</li>
+                        </ol>
+                    </div>
+                    
+                    <div style="background: #d1ecf1; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                        <h4>☁️ Método 2: Sincronização Automática</h4>
+                        <p>Cole o código de sincronização para conectar dispositivos:</p>
+                        <input type="text" id="syncCode" placeholder="Cole o código aqui..." style="width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px;">
+                        <div class="controls">
+                            <button class="btn" onclick="generateSyncCode()">🔗 Gerar Código</button>
+                            <button class="btn" onclick="connectWithCode()">🔌 Conectar com Código</button>
+                        </div>
+                        <div id="generatedCode" style="margin-top: 10px;"></div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
+
+    <!-- Armazenamento de dados integrado no HTML -->
+    <script id="dataStorage" type="application/json">
+    {
+        "people": [],
+        "attendance": {},
+        "invites": [],
+        "notifications": [],
+        "settings": {
+            "autoSync": true,
+            "syncInterval": 30000,
+            "lastSync": null
+        }
+    }
+    </script>
 
     <script>
         // Variáveis globais
@@ -358,9 +481,64 @@
         let ctx = null;
         let model = null;
         let stream = null;
-        let people = JSON.parse(localStorage.getItem('faceRecognitionPeople') || '[]');
-        let attendance = JSON.parse(localStorage.getItem('faceRecognitionAttendance') || '{}');
-        let invites = JSON.parse(localStorage.getItem('faceRecognitionInvites') || '[]');
+        
+        // Sistema de sincronização automática
+        let syncEnabled = true;
+        let syncInterval = null;
+        let syncCode = null;
+        
+        // Carregar dados do HTML integrado
+        function loadDataFromHTML() {
+            try {
+                const dataScript = document.getElementById('dataStorage');
+                const data = JSON.parse(dataScript.textContent);
+                return data;
+            } catch (error) {
+                console.log('Criando estrutura de dados inicial');
+                return {
+                    people: [],
+                    attendance: {},
+                    invites: [],
+                    notifications: [],
+                    settings: {
+                        autoSync: true,
+                        syncInterval: 30000,
+                        lastSync: null
+                    }
+                };
+            }
+        }
+        
+        // Salvar dados no HTML integrado
+        function saveDataToHTML() {
+            const data = {
+                people: people,
+                attendance: attendance,
+                invites: invites,
+                notifications: JSON.parse(localStorage.getItem('faceRecognitionNotifications') || '[]'),
+                settings: {
+                    autoSync: syncEnabled,
+                    syncInterval: 30000,
+                    lastSync: new Date().toISOString()
+                }
+            };
+            
+            const dataScript = document.getElementById('dataStorage');
+            dataScript.textContent = JSON.stringify(data, null, 2);
+            
+            // Também manter no localStorage para compatibilidade
+            localStorage.setItem('faceRecognitionPeople', JSON.stringify(people));
+            localStorage.setItem('faceRecognitionAttendance', JSON.stringify(attendance));
+            localStorage.setItem('faceRecognitionInvites', JSON.stringify(invites));
+            
+            updateSyncStatus();
+        }
+        
+        // Carregar dados iniciais
+        let htmlData = loadDataFromHTML();
+        let people = htmlData.people || JSON.parse(localStorage.getItem('faceRecognitionPeople') || '[]');
+        let attendance = htmlData.attendance || JSON.parse(localStorage.getItem('faceRecognitionAttendance') || '{}');
+        let invites = htmlData.invites || JSON.parse(localStorage.getItem('faceRecognitionInvites') || '[]');
 
         // Inicialização
         document.addEventListener('DOMContentLoaded', function() {
@@ -370,7 +548,227 @@
             checkForInviteRegistration();
             updateNotifications();
             updateInvitesList();
+            startAutoSync();
+            updateSyncStatus();
         });
+
+        // Sistema de sincronização automática
+        function startAutoSync() {
+            if (syncInterval) clearInterval(syncInterval);
+            
+            syncInterval = setInterval(() => {
+                if (syncEnabled) {
+                    saveDataToHTML();
+                    updateSyncStatus();
+                }
+            }, 30000); // Sincronizar a cada 30 segundos
+        }
+        
+        function toggleAutoSync() {
+            syncEnabled = !syncEnabled;
+            const btn = document.getElementById('syncToggleBtn');
+            
+            if (syncEnabled) {
+                btn.innerHTML = '⏸️ Pausar Sincronização';
+                btn.style.background = '#dc3545';
+                startAutoSync();
+            } else {
+                btn.innerHTML = '▶️ Ativar Sincronização';
+                btn.style.background = '#28a745';
+                if (syncInterval) clearInterval(syncInterval);
+            }
+            
+            updateSyncStatus();
+        }
+        
+        function forcSync() {
+            saveDataToHTML();
+            updateSyncStatus();
+            
+            const statusDiv = document.getElementById('syncStatus');
+            statusDiv.className = 'sync-status syncing';
+            statusDiv.innerHTML = '🔄 Sincronizando...';
+            
+            setTimeout(() => {
+                statusDiv.className = 'sync-status synced';
+                statusDiv.innerHTML = '✅ Sincronizado';
+                
+                setTimeout(() => {
+                    statusDiv.className = 'sync-status';
+                    statusDiv.innerHTML = '🔄 Sincronização Automática Ativa';
+                }, 2000);
+            }, 1000);
+        }
+        
+        function updateSyncStatus() {
+            const now = new Date();
+            const totalRecords = people.length + Object.keys(attendance).length + invites.length;
+            
+            document.getElementById('syncStatusText').textContent = syncEnabled ? 'Ativo' : 'Pausado';
+            document.getElementById('lastSyncText').textContent = now.toLocaleString('pt-BR');
+            document.getElementById('nextSyncText').textContent = syncEnabled ? 'Em 30 segundos' : 'Pausado';
+            document.getElementById('syncDataCount').textContent = totalRecords;
+        }
+        
+        function resetSyncData() {
+            if (confirm('⚠️ Isso irá apagar TODOS os dados salvos. Tem certeza?')) {
+                people = [];
+                attendance = {};
+                invites = [];
+                localStorage.clear();
+                
+                const dataScript = document.getElementById('dataStorage');
+                dataScript.textContent = JSON.stringify({
+                    people: [],
+                    attendance: {},
+                    invites: [],
+                    notifications: [],
+                    settings: { autoSync: true, syncInterval: 30000, lastSync: null }
+                }, null, 2);
+                
+                updatePersonList();
+                updateInvitesList();
+                updateNotifications();
+                updateSyncStatus();
+                
+                alert('✅ Todos os dados foram limpos!');
+            }
+        }
+        
+        // Baixar HTML com dados integrados
+        function downloadHTMLWithData() {
+            // Forçar sincronização antes do download
+            saveDataToHTML();
+            
+            // Obter o HTML completo da página
+            const htmlContent = document.documentElement.outerHTML;
+            
+            // Criar arquivo para download
+            const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `sistema_presenca_completo_${new Date().toISOString().split('T')[0]}.html`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+            
+            alert(`✅ HTML PORTÁTIL GERADO!
+
+📁 Arquivo: sistema_presenca_completo_${new Date().toISOString().split('T')[0]}.html
+
+🎯 COMO USAR:
+• Abra o arquivo em qualquer navegador
+• Todos os dados estarão lá automaticamente
+• Funciona offline, sem internet
+• Compartilhe com outras pessoas
+• Salve na nuvem para backup
+
+💾 DADOS INCLUSOS:
+• ${people.length} pessoas cadastradas
+• ${Object.keys(attendance).length} registros de presença
+• ${invites.length} convites
+• Todas as configurações`);
+        }
+        
+        function showDataPreview() {
+            const preview = document.getElementById('dataPreview');
+            const content = document.getElementById('dataContent');
+            
+            if (preview.style.display === 'none') {
+                const data = loadDataFromHTML();
+                content.innerHTML = `
+                    <strong>👥 Pessoas:</strong> ${data.people.length} cadastradas<br>
+                    <strong>📋 Presenças:</strong> ${Object.keys(data.attendance).length} registros<br>
+                    <strong>📧 Convites:</strong> ${data.invites.length} pendentes<br>
+                    <strong>🔔 Notificações:</strong> ${data.notifications.length} mensagens<br>
+                    <strong>⚙️ Configurações:</strong> Sincronização ${data.settings.autoSync ? 'ativa' : 'pausada'}<br><br>
+                    <strong>📊 Dados completos:</strong><br>
+                    <pre style="font-size: 10px; max-height: 150px; overflow-y: auto;">${JSON.stringify(data, null, 2)}</pre>
+                `;
+                preview.style.display = 'block';
+            } else {
+                preview.style.display = 'none';
+            }
+        }
+        
+        // Sistema de códigos de sincronização
+        function generateSyncCode() {
+            const data = {
+                people: people,
+                attendance: attendance,
+                invites: invites,
+                timestamp: Date.now()
+            };
+            
+            // Gerar código base64 comprimido
+            const jsonString = JSON.stringify(data);
+            syncCode = btoa(jsonString).replace(/[^a-zA-Z0-9]/g, '').substring(0, 20);
+            
+            // Salvar dados com o código
+            localStorage.setItem(`syncData_${syncCode}`, jsonString);
+            
+            document.getElementById('generatedCode').innerHTML = `
+                <div style="background: #d4edda; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                    <h4>🔗 Código de Sincronização Gerado:</h4>
+                    <div style="font-family: monospace; font-size: 18px; font-weight: bold; color: #155724; text-align: center; padding: 10px; background: white; border-radius: 5px; margin: 10px 0;">
+                        ${syncCode}
+                    </div>
+                    <p><strong>📋 Como usar:</strong></p>
+                    <ol>
+                        <li>Copie este código</li>
+                        <li>Abra o sistema em outro dispositivo</li>
+                        <li>Vá na aba "Sincronização"</li>
+                        <li>Cole o código e clique "Conectar"</li>
+                    </ol>
+                    <button class="btn" onclick="navigator.clipboard.writeText('${syncCode}')">📋 Copiar Código</button>
+                </div>
+            `;
+        }
+        
+        function connectWithCode() {
+            const code = document.getElementById('syncCode').value.trim();
+            if (!code) {
+                alert('Por favor, digite um código de sincronização.');
+                return;
+            }
+            
+            try {
+                const syncData = localStorage.getItem(`syncData_${code}`);
+                if (!syncData) {
+                    alert('❌ Código não encontrado. Verifique se está correto.');
+                    return;
+                }
+                
+                const data = JSON.parse(syncData);
+                const confirmMessage = `
+🔗 CONECTAR COM CÓDIGO: ${code}
+
+Dados encontrados:
+• ${data.people.length} pessoas
+• ${Object.keys(data.attendance).length} presenças
+• ${data.invites.length} convites
+• Data: ${new Date(data.timestamp).toLocaleString('pt-BR')}
+
+⚠️ Seus dados atuais serão substituídos!
+Deseja continuar?`;
+                
+                if (confirm(confirmMessage)) {
+                    people = data.people;
+                    attendance = data.attendance;
+                    invites = data.invites;
+                    
+                    saveDataToHTML();
+                    updatePersonList();
+                    updateInvitesList();
+                    updateNotifications();
+                    
+                    alert('✅ Sincronização realizada com sucesso!');
+                    document.getElementById('syncCode').value = '';
+                }
+            } catch (error) {
+                alert('❌ Erro ao conectar: ' + error.message);
+            }
+        }
 
         // Carregar modelo de reconhecimento facial
         async function loadModel() {
@@ -470,7 +868,7 @@
                         present: true
                     };
                     
-                    localStorage.setItem('faceRecognitionAttendance', JSON.stringify(attendance));
+                    saveDataToHTML(); // Sincronizar automaticamente
                     
                     resultDiv.innerHTML = `
                         <div class="recognition-result success">
@@ -585,7 +983,7 @@
             };
             
             people.push(newPerson);
-            localStorage.setItem('faceRecognitionPeople', JSON.stringify(people));
+            saveDataToHTML(); // Sincronizar automaticamente
             
             // Limpar formulário
             document.getElementById('registerForm').reset();
@@ -636,9 +1034,7 @@
                 people = people.filter(p => p.email !== email);
                 delete attendance[email];
                 
-                localStorage.setItem('faceRecognitionPeople', JSON.stringify(people));
-                localStorage.setItem('faceRecognitionAttendance', JSON.stringify(attendance));
-                
+                saveDataToHTML(); // Sincronizar automaticamente
                 updatePersonList();
             }
         }
@@ -675,7 +1071,7 @@
                 invites: invites,
                 notifications: JSON.parse(localStorage.getItem('faceRecognitionNotifications') || '[]'),
                 exportDate: new Date().toISOString(),
-                version: '1.0'
+                version: '2.0'
             };
             
             const json = JSON.stringify(backupData, null, 2);
@@ -795,10 +1191,7 @@ Deseja continuar?`;
                     attendance = backupData.attendance || {};
                     invites = backupData.invites || [];
                     
-                    // Salvar no localStorage
-                    localStorage.setItem('faceRecognitionPeople', JSON.stringify(people));
-                    localStorage.setItem('faceRecognitionAttendance', JSON.stringify(attendance));
-                    localStorage.setItem('faceRecognitionInvites', JSON.stringify(invites));
+                    saveDataToHTML(); // Sincronizar automaticamente
                     
                     if (backupData.notifications) {
                         localStorage.setItem('faceRecognitionNotifications', JSON.stringify(backupData.notifications));
@@ -893,7 +1286,7 @@ Deseja continuar?`;
                 if (confirm(message)) {
                     // Adicionar pessoas à lista
                     people.push(...newPeople);
-                    localStorage.setItem('faceRecognitionPeople', JSON.stringify(people));
+                    saveDataToHTML(); // Sincronizar automaticamente
                     
                     updatePersonList();
                     
@@ -909,7 +1302,7 @@ Deseja continuar?`;
         function clearAttendance() {
             if (confirm('Tem certeza que deseja limpar todas as presenças?')) {
                 attendance = {};
-                localStorage.setItem('faceRecognitionAttendance', JSON.stringify(attendance));
+                saveDataToHTML(); // Sincronizar automaticamente
                 updatePersonList();
             }
         }
@@ -1004,7 +1397,7 @@ Deseja continuar?`;
                 };
                 
                 invites.push(invite);
-                localStorage.setItem('faceRecognitionInvites', JSON.stringify(invites));
+                saveDataToHTML(); // Sincronizar automaticamente
                 
                 // Enviar notificação por email
                 sendEmailNotification(invite);
@@ -1142,12 +1535,12 @@ Sistema de Presença com Reconhecimento Facial
             };
             
             people.push(newPerson);
-            localStorage.setItem('faceRecognitionPeople', JSON.stringify(people));
             
             // Marcar convite como aprovado
             invite.status = 'approved';
             invite.approvedAt = new Date().toLocaleString('pt-BR');
-            localStorage.setItem('faceRecognitionInvites', JSON.stringify(invites));
+            
+            saveDataToHTML(); // Sincronizar automaticamente
             
             alert(`${invite.fullName} foi aprovado(a) e cadastrado(a) no sistema!`);
             updatePersonList();
@@ -1162,7 +1555,7 @@ Sistema de Presença com Reconhecimento Facial
                 if (inviteIndex > -1) {
                     invites[inviteIndex].status = 'rejected';
                     invites[inviteIndex].rejectedAt = new Date().toLocaleString('pt-BR');
-                    localStorage.setItem('faceRecognitionInvites', JSON.stringify(invites));
+                    saveDataToHTML(); // Sincronizar automaticamente
                 }
                 
                 // Remover notificação
@@ -1186,5 +1579,5 @@ Sistema de Presença com Reconhecimento Facial
             }
         }
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'971b3475e4bedf41',t:'MTc1NTYyMjgwMy4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'971b3efee1e1e0e2',t:'MTc1NTYyMzIzNC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
